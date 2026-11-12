@@ -12,7 +12,7 @@ import { generationFingerprint } from "../../src/lib/generation-operations.ts";
 import { TERMS_VERSION, PRIVACY_VERSION } from "../../src/lib/legal.ts";
 import { httpEvaluationBackend } from "../../evals/course-pipeline/http-backend.ts";
 
-if (process.env.OPENAI_API_KEY || process.env.DATABASE_URL || process.env.NODE_ENV === "production") throw new Error("Capability fixture requires isolated local mode without provider credentials.");
+if (process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true" || process.env.NODE_ENV === "production") throw new Error("Capability fixture requires isolated local mode without provider credentials.");
 const directory = mkdtempSync(join(tmpdir(), "evaluation-capability-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 process.env.OPENAI_API_KEY = "synthetic-capability-key";

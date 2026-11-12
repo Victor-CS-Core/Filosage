@@ -2,7 +2,7 @@
 /**
  * Build for Cloudflare Workers.
  *
- * Two source swaps are needed for the Workers build:
+ * One source swap is needed for the Workers build:
  *
  * 1. Next 16 runs `proxy.ts` on the Node.js runtime unconditionally, which
  *    @opennextjs/cloudflare cannot bundle ("Node.js middleware is not currently
@@ -10,13 +10,7 @@
  *    the Edge runtime, so `src/proxy.ts` is moved aside and
  *    `src/middleware.cloudflare.ts` is installed as `src/middleware.ts`.
  *
- * 2. `postgres-document-store.ts` imports the `pg` driver, which cannot be
- *    bundled for Workers (Node.js TCP sockets). On Cloudflare the D1 backend
- *    is always active, so the pg module is dead code — but the bundler still
- *    follows the dynamic `import()` in `document-store.ts`. Swapping in the
- *    stub keeps `pg` out of the Worker bundle entirely.
- *
- * Both swaps are restored after the build. Set DEPLOYMENT_ENVIRONMENT in the
+ * The swap is restored after the build. Set DEPLOYMENT_ENVIRONMENT in the
  * build environment to control the middleware's QA robots tag (inlined at
  * build time).
  *
@@ -33,7 +27,6 @@ import { execSync } from "node:child_process";
 
 const swaps = [
   { original: "src/proxy.ts", backup: "src/proxy.ts.cfbuild-bak", replacement: "src/middleware.cloudflare.ts", target: "src/middleware.ts" },
-  { original: "src/lib/postgres-document-store.ts", backup: "src/lib/postgres-document-store.ts.cfbuild-bak", replacement: "src/lib/postgres-document-store.cloudflare-stub.ts", target: "src/lib/postgres-document-store.ts" },
 ];
 
 // next.config.ts sets a CSP header without a nonce via headers(). The edge

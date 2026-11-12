@@ -41,10 +41,10 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
       || redirect?.protocol !== "https:"
       || redirect.hostname !== "accounts.google.com"
       || redirect.pathname !== "/o/oauth2/v2/auth") {
-      throw new Error("Google Easy Auth did not issue the expected OAuth redirect");
+      throw new Error("Google OAuth did not issue the expected redirect");
     }
 
-    console.log("Release safety is healthy (new checkout locked; Google Easy Auth active).");
+    console.log("Release safety is healthy (new checkout locked; Google OAuth active).");
     process.exit(0);
   } catch (error) {
     lastFailure = error instanceof Error ? error.message : "unknown error";

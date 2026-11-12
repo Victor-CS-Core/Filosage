@@ -4,20 +4,15 @@ import { readReleaseManifest } from "./release-manifest.mjs";
 const activationMode = process.argv.includes("--billing-activation");
 const required = [
   "NEXT_PUBLIC_SITE_URL",
-  "DATABASE_URL",
-  "AZURE_EASY_AUTH_ENABLED",
-  "AZURE_STORAGE_ACCOUNT_URL",
-  "AZURE_STORAGE_BANNER_CONTAINER",
-  "AZURE_POSTGRES_SERVER_NAME",
-  "AZURE_RESOURCE_GROUP",
+  "CLOUDFLARE_D1_ENABLED",
+  "CLOUDFLARE_R2_ENABLED",
   "OPENAI_API_KEY",
   "OWNER_EMAIL",
-  "MIGRATED_OWNER_UID",
   "ACTIVITY_RECEIPT_SECRET",
   "IDENTITY_LINK_HMAC_SECRET",
   "DIRECT_GOOGLE_AUTH_ENABLED",
-  "EXTERNAL_ID_AUTH_ENABLED",
-  "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
   "BILLING_ENABLED",
   "BILLING_ROLLOUT_MODE",
   "STRIPE_TAX_READY",
@@ -32,31 +27,16 @@ else {
   const invalid = [];
   const enabled = (name) => process.env[name]?.trim() === "true";
   const directGoogleEnabled = enabled("DIRECT_GOOGLE_AUTH_ENABLED");
-  const externalIdEnabled = enabled("EXTERNAL_ID_AUTH_ENABLED");
-  const externalIdNewAccountsEnabled = enabled("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED");
-  for (const name of ["AZURE_EASY_AUTH_ENABLED", "DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "BILLING_ENABLED", "STRIPE_TAX_READY"]) {
+  for (const name of ["CLOUDFLARE_D1_ENABLED", "CLOUDFLARE_R2_ENABLED", "DIRECT_GOOGLE_AUTH_ENABLED", "BILLING_ENABLED", "STRIPE_TAX_READY"]) {
     if (!/^(?:true|false)$/.test(process.env[name]?.trim() ?? "")) invalid.push(`${name} must be exactly true or false`);
   }
-  if (!directGoogleEnabled && !externalIdEnabled) invalid.push("At least one production authentication provider must be enabled");
-  if (externalIdNewAccountsEnabled && !externalIdEnabled) invalid.push("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED requires EXTERNAL_ID_AUTH_ENABLED");
+  if (!enabled("CLOUDFLARE_D1_ENABLED")) invalid.push("CLOUDFLARE_D1_ENABLED must be true for production releases");
+  if (!enabled("CLOUDFLARE_R2_ENABLED")) invalid.push("CLOUDFLARE_R2_ENABLED must be true for production releases");
+  if (!directGoogleEnabled) invalid.push("DIRECT_GOOGLE_AUTH_ENABLED must be true for production releases");
   if ((process.env.IDENTITY_LINK_HMAC_SECRET?.trim().length ?? 0) < 32) invalid.push("IDENTITY_LINK_HMAC_SECRET must contain at least 32 characters");
-  if (externalIdEnabled) {
-    for (const name of ["EXTERNAL_ID_CLIENT_ID", "EXTERNAL_ID_ISSUER", "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION"]) {
-      if (!process.env[name]?.trim()) invalid.push(`${name} is required when External ID is enabled`);
-    }
-    for (const name of ["EXTERNAL_ID_ISSUER", "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION"]) {
-      try {
-        const url = new URL(process.env[name]);
-        if (url.protocol !== "https:") invalid.push(`${name} must use HTTPS`);
-      } catch {
-        invalid.push(`${name} must be a valid HTTPS URL`);
-      }
-    }
-  }
   if (process.env.ACTIVITY_RECEIPT_SECRET.trim().length < 32) invalid.push("ACTIVITY_RECEIPT_SECRET must contain at least 32 characters");
   if (!/^[a-f0-9]{40}$/i.test(process.env.SITE_VERSION.trim())) invalid.push("SITE_VERSION must be the full 40-character Git commit SHA");
   if (!/^[a-f0-9]{40}$/.test(process.env.EXPECTED_SITE_VERSION ?? "") || process.env.SITE_VERSION !== process.env.EXPECTED_SITE_VERSION) invalid.push("SITE_VERSION must match the approved EXPECTED_SITE_VERSION");
-  if (process.env.AZURE_EASY_AUTH_ENABLED.trim().toLowerCase() !== "true") invalid.push("AZURE_EASY_AUTH_ENABLED must be true for production releases");
   try {
     if (!releaseSelectionMatches(readReleaseManifest().capabilities, observedReleaseCapabilities(process.env))) {
       invalid.push("release capabilities must match the approved manifest (all flags explicit; generation requires decks)");
@@ -64,9 +44,7 @@ else {
   } catch { invalid.push("Invalid approved release manifest"); }
   const expectedOrigin = process.env.EXPECTED_SITE_ORIGIN;
   if (!validReleaseOrigin(expectedOrigin) || process.env.NEXT_PUBLIC_SITE_URL !== expectedOrigin) invalid.push("canonical origin must match EXPECTED_SITE_ORIGIN");
-  const mode = directGoogleEnabled && externalIdEnabled ? "migration-dual" : externalIdEnabled ? "external-id" : "direct-google";
-  if (process.env.EXPECTED_AUTH_MODE !== mode) invalid.push("authentication mode must match EXPECTED_AUTH_MODE");
-  if (!/^https:\/\/[a-z0-9-]+\.blob\.core\.windows\.net\/?$/i.test(process.env.AZURE_STORAGE_ACCOUNT_URL.trim())) invalid.push("AZURE_STORAGE_ACCOUNT_URL must be an Azure Blob service URL");
+  if (process.env.EXPECTED_AUTH_MODE !== "direct-google") invalid.push("authentication mode must be direct-google");
   const billingRolloutMode = process.env.BILLING_ROLLOUT_MODE?.trim().toLowerCase() ?? "";
   if (!["closed", "configured", "canary", "open"].includes(billingRolloutMode)) {
     invalid.push("BILLING_ROLLOUT_MODE must be closed, configured, canary, or open");

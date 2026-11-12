@@ -1,5 +1,5 @@
 export const qualityWorkflowPath = '.github/workflows/quality-gate.yml';
-const requiredJobs = ['static-and-release-contracts', 'browser-smoke', 'postgres-transactions'];
+const requiredJobs = ['static-and-release-contracts', 'browser-smoke', 'worker-bundle-smoke'];
 const positiveInteger = (value) => Number.isSafeInteger(value) && value > 0;
 
 // Workflow success alone also describes documentation runs with expensive jobs

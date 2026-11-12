@@ -371,8 +371,8 @@ test("@smoke a delayed validation cannot revive an earlier account session", asy
   const delayedValidation = new Promise<void>((resolve) => { releaseValidation = resolve; });
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
     recentAuthentication: true,
-    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
-    user: { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" },
+    authentication: { primaryProvider: "google", googleAvailable: true },
+    user: { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "google" },
   } }));
   await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ isOwner: true, displayName: uid }) }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));

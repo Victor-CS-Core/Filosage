@@ -31,7 +31,7 @@ Guests can open a published course overview and inspect its outcome, modules, le
 1. Choose a published course from Explore.
 2. Review the course outcome and sequence.
 3. Select a lesson.
-4. When prompted, confirm age eligibility and the current Terms and Privacy Notice, then select one of the sign-in methods currently shown. Google remains available when enabled; email-code sign-in appears only when Microsoft Entra External ID is enabled. During rollout, email-code access may be limited to recovering an existing account; that does not mean new email-code account creation is open.
+4. When prompted, confirm age eligibility and the current Terms and Privacy Notice, then continue with Google.
 
 The in-app sign-in screen follows the light or dark appearance already selected in Filosage. Google-labeled actions show the official Google mark.
 

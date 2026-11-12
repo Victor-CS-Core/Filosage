@@ -7,10 +7,10 @@ import {
   COURSE_SCOPED_COLLECTION_GROUPS,
 } from "../src/lib/course-deletion";
 
-test("course deletion collection-group queries are covered by the Azure PostgreSQL document store", async () => {
-  const schema = await readFile("infra/azure/database/001_document_store.sql", "utf8");
+test("course deletion collection-group queries are covered by the D1 document store", async () => {
+  const schema = await readFile("infra/cloudflare/d1/001_document_store.sql", "utf8");
   expect(schema).toContain("filosage_documents_collection_id_idx");
-  expect(schema).toContain("USING gin (data jsonb_path_ops)");
+  expect(schema).toContain("ON filosage_documents (collection_id, path)");
 
   const requiredGroups = new Set<string>([
     ...Object.values(COURSE_SCOPED_COLLECTION_GROUPS),
@@ -30,15 +30,15 @@ test("course deletion collection-group queries are covered by the Azure PostgreS
   }
 });
 
-test("retired datastore index and rules files are not part of the Azure runtime", () => {
+test("retired datastore index and rules files are not part of the Cloudflare runtime", () => {
   expect(existsSync(`${RETIRED_SYSTEM_NAMES[2]}.json`)).toBe(false);
   expect(existsSync(`${RETIRED_SYSTEM_NAMES[1]}.rules`)).toBe(false);
   expect(existsSync(`${RETIRED_SYSTEM_NAMES[1]}.indexes.json`)).toBe(false);
 });
 
-test("production health copy names Azure PostgreSQL and keeps SITE_VERSION", async () => {
+test("production health copy names Cloudflare D1 and keeps SITE_VERSION", async () => {
   const health = await readFile("src/app/api/health/route.ts", "utf8");
-  expect(health).toContain("Azure PostgreSQL document store");
+  expect(health).toContain("Cloudflare D1 document store");
   expect(health).toContain("SITE_VERSION");
   expect(health).toContain("GITHUB_SHA");
   expect(health).not.toContain(RETIRED_SYSTEM_NAMES[1]);

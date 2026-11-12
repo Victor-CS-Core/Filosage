@@ -30,7 +30,6 @@ import {
   type LessonSavePipelineGuard,
 } from "@/lib/course-pipeline/lesson-save";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
-import { serverEnvironment } from "@/lib/runtime-environment";
 import { currentAccountGeneration } from "@/lib/account-lifecycle";
 import { assertLessonAttempt, lessonAccountingWrites, lessonCommitPaths, type LessonGenerationGuard } from "@/lib/course-pipeline/lesson-commit";
 import { LessonSaveError, lessonPublicationState, lessonCourseFingerprint } from "@/lib/course-pipeline/lesson-save";
@@ -86,17 +85,8 @@ async function rawDocumentStoreJson<T>(
     const { localDocumentStoreJson } = await import("@/lib/local-store");
     return localDocumentStoreJson<T>(path, init, allowNotFound);
   }
-  // Cloudflare D1 takes precedence when its binding is configured, so the same
-  // build can run on Workers without a PostgreSQL DATABASE_URL.
-  if (serverEnvironment.CLOUDFLARE_D1_ENABLED?.trim().toLowerCase() === "true") {
-    const { d1DocumentStoreJson } = await import("@/lib/d1-document-store");
-    return d1DocumentStoreJson<T>(path, init, allowNotFound);
-  }
-  if (serverEnvironment.DATABASE_URL?.trim()) {
-    const { postgresDocumentStoreJson } = await import("@/lib/postgres-document-store");
-    return postgresDocumentStoreJson<T>(path, init, allowNotFound);
-  }
-  throw new Error("A document store backend is required outside local development.");
+  const { d1DocumentStoreJson } = await import("@/lib/d1-document-store");
+  return d1DocumentStoreJson<T>(path, init, allowNotFound);
 }
 
 // Every mutation uses the same transaction boundary, including legacy PATCH,
@@ -146,7 +136,7 @@ function parseLocatedDocument(document: DocumentRecord): LocatedStoredDocument {
 }
 
 function fullDocumentName(path: string) {
-  const projectId = isLocalMode() ? "local" : "azure";
+  const projectId = isLocalMode() ? "local" : "cloudflare";
   return `projects/${projectId}/databases/(default)/documents/${path}`;
 }
 
@@ -442,20 +432,8 @@ export async function checkDocumentStoreReadiness() {
     await getStoredDocument("system/health");
     return;
   }
-  // Mirror the data-path dispatch precedence: D1 before PostgreSQL, so a
-  // Workers deployment without DATABASE_URL probes the store it actually
-  // uses instead of failing on the PostgreSQL requirement.
-  if (serverEnvironment.CLOUDFLARE_D1_ENABLED?.trim().toLowerCase() === "true") {
-    const { checkD1DocumentStoreReadiness } = await import("@/lib/d1-document-store");
-    await checkD1DocumentStoreReadiness();
-    return;
-  }
-  if (serverEnvironment.DATABASE_URL?.trim()) {
-    const { checkPostgresDocumentStoreReadiness } = await import("@/lib/postgres-document-store");
-    await checkPostgresDocumentStoreReadiness();
-    return;
-  }
-  throw new Error("Azure PostgreSQL is required outside local development.");
+  const { checkD1DocumentStoreReadiness } = await import("@/lib/d1-document-store");
+  await checkD1DocumentStoreReadiness();
 }
 
 export async function putStoredDocument(path: string, data: Record<string, unknown>) {
@@ -717,7 +695,7 @@ export async function runStoredDocumentTransaction<T>(
   let conflicts = 0;
   // The callback is pure: discovering additional ownership reads rolls back and
   // reruns it with the complete lock set. All locks are acquired in sorted order
-  // by PostgreSQL, including absent lifecycle keys via advisory locks.
+  // by D1, including absent lifecycle keys in the transaction.
   for (let expansion = 0; expansion < 16; expansion += 1) {
     let transaction: string | undefined;
     try {

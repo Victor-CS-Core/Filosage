@@ -6,7 +6,7 @@ const uid = process.env.F6_UID;
 const body = process.env.F6_BODY;
 const key = process.env.F6_KEY;
 const counterPath = process.env.F6_COUNTER_PATH;
-if (!product || !uid || !body || !key || !counterPath || process.env.OPENAI_API_KEY || process.env.DATABASE_URL) {
+if (!product || !uid || !body || !key || !counterPath || process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true") {
   throw new Error("Invalid isolated pre-checkpoint child configuration.");
 }
 

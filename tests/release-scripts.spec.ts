@@ -12,7 +12,6 @@ const releaseScript = resolve(root, "scripts/check-release-env.mjs");
 const healthScript = resolve(root, "scripts/check-production-health.mjs");
 const safetyScript = resolve(root, "scripts/check-release-safety.mjs");
 const featuredCourseScript = resolve(root, "scripts/check-featured-course.mjs");
-const providerStateScript = resolve(root, "scripts/check-auth-provider-state.mjs");
 const trackedSecretScript = resolve(root, "scripts/check-tracked-secrets.mjs");
 const healthVersion = "b".repeat(40);
 const approvedManifest = JSON.parse(readFileSync(resolve(root, "config/release-capabilities.json"), "utf8"));
@@ -197,12 +196,8 @@ const validReleaseEnvironment = {
   // Every optional switch is explicit in a release environment.
   ...releaseEnvironment(selectedManifest()),
   NEXT_PUBLIC_SITE_URL: "https://release.example",
-  DATABASE_URL: "postgresql://release:placeholder@filosage-release.postgres.database.azure.com:5432/filosage?sslmode=verify-full",
-  AZURE_EASY_AUTH_ENABLED: "true",
-  AZURE_STORAGE_ACCOUNT_URL: "https://filosagerelease.blob.core.windows.net/",
-  AZURE_STORAGE_BANNER_CONTAINER: "course-banners",
-  AZURE_POSTGRES_SERVER_NAME: "filosage-release",
-  AZURE_RESOURCE_GROUP: "filosage-release-rg",
+  CLOUDFLARE_D1_ENABLED: "true",
+  CLOUDFLARE_R2_ENABLED: "true",
   OPENAI_API_KEY: "release-check-placeholder",
   OWNER_EMAIL: "owner@release.example",
   MIGRATED_OWNER_UID: "migrated-owner-uid",
@@ -218,8 +213,8 @@ const validReleaseEnvironment = {
   FLASHCARD_AI_GENERATION_ENABLED: "true",
   IDENTITY_LINK_HMAC_SECRET: "identity-link-hmac-secret-at-least-32-characters",
   DIRECT_GOOGLE_AUTH_ENABLED: "true",
-  EXTERNAL_ID_AUTH_ENABLED: "false",
-  EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "false",
+  GOOGLE_CLIENT_ID: "google-client-id.apps.googleusercontent.com",
+  GOOGLE_CLIENT_SECRET: "google-client-secret-placeholder",
 };
 
 function runNodeScript(script: string, args: string[], env: NodeJS.ProcessEnv, timeoutMs = 3_000) {
@@ -265,7 +260,7 @@ async function withHealthResponse(
   }
 }
 
-test("release checks bind Azure and production health to one full Git SHA", () => {
+test("release checks bind Cloudflare configuration and production health to one full Git SHA", () => {
   const valid = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
     env: validReleaseEnvironment,
@@ -290,21 +285,21 @@ test("release checks bind Azure and production health to one full Git SHA", () =
   expect(disabledGenerationFlag.status).toBe(1);
   expect(disabledGenerationFlag.stderr).toContain("release capabilities must match the approved manifest");
 
-  const missingRecovery = spawnSync(process.execPath, [releaseScript], {
+  const missingDatastore = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
-    env: { ...validReleaseEnvironment, AZURE_POSTGRES_SERVER_NAME: "" },
+    env: { ...validReleaseEnvironment, CLOUDFLARE_D1_ENABLED: "" },
     encoding: "utf8",
   });
-  expect(missingRecovery.status).toBe(1);
-  expect(missingRecovery.stderr).toContain("AZURE_POSTGRES_SERVER_NAME");
+  expect(missingDatastore.status).toBe(1);
+  expect(missingDatastore.stderr).toContain("CLOUDFLARE_D1_ENABLED");
 
-  const disabledEasyAuth = spawnSync(process.execPath, [releaseScript], {
+  const disabledGoogle = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
-    env: { ...validReleaseEnvironment, AZURE_EASY_AUTH_ENABLED: "false" },
+    env: { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false" },
     encoding: "utf8",
   });
-  expect(disabledEasyAuth.status).toBe(1);
-  expect(disabledEasyAuth.stderr).toContain("AZURE_EASY_AUTH_ENABLED must be true for production releases");
+  expect(disabledGoogle.status).toBe(1);
+  expect(disabledGoogle.stderr).toContain("DIRECT_GOOGLE_AUTH_ENABLED must be true for production releases");
 
   const shortVersion = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
@@ -394,16 +389,12 @@ test("production health accepts a revision with both flashcard features enabled"
 
 test("ordinary releases reject unsafe identity provider and billing combinations without printing secrets", () => {
   const rejected: Array<[string, NodeJS.ProcessEnv, string]> = [
-    ["zero providers", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false", EXTERNAL_ID_AUTH_ENABLED: "false" }, "At least one production authentication provider must be enabled"],
-    ["new accounts without External ID", { ...validReleaseEnvironment, EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "true" }, "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED requires EXTERNAL_ID_AUTH_ENABLED"],
-    ["missing External ID client", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false", EXTERNAL_ID_AUTH_ENABLED: "true", EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0", EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration" }, "EXTERNAL_ID_CLIENT_ID is required when External ID is enabled"],
-    ["missing External ID issuer", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false", EXTERNAL_ID_AUTH_ENABLED: "true", EXTERNAL_ID_CLIENT_ID: "external-client-id", EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration" }, "EXTERNAL_ID_ISSUER is required when External ID is enabled"],
-    ["missing discovery metadata", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false", EXTERNAL_ID_AUTH_ENABLED: "true", EXTERNAL_ID_CLIENT_ID: "external-client-id", EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0" }, "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION is required when External ID is enabled"],
-    ["HTTP External ID issuer", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false", EXTERNAL_ID_AUTH_ENABLED: "true", EXTERNAL_ID_CLIENT_ID: "external-client-id", EXTERNAL_ID_ISSUER: "http://tenant.example/v2.0", EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration" }, "EXTERNAL_ID_ISSUER must use HTTPS"],
-    ["HTTP discovery metadata", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false", EXTERNAL_ID_AUTH_ENABLED: "true", EXTERNAL_ID_CLIENT_ID: "external-client-id", EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0", EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "http://tenant.example/.well-known/openid-configuration" }, "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION must use HTTPS"],
+    ["disabled Google", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false" }, "DIRECT_GOOGLE_AUTH_ENABLED must be true for production releases"],
+    ["disabled D1", { ...validReleaseEnvironment, CLOUDFLARE_D1_ENABLED: "false" }, "CLOUDFLARE_D1_ENABLED must be true for production releases"],
+    ["disabled R2", { ...validReleaseEnvironment, CLOUDFLARE_R2_ENABLED: "false" }, "CLOUDFLARE_R2_ENABLED must be true for production releases"],
     ["short identity HMAC", { ...validReleaseEnvironment, IDENTITY_LINK_HMAC_SECRET: "too-short" }, "IDENTITY_LINK_HMAC_SECRET must contain at least 32 characters"],
     ["ordinary billing activation", { ...validReleaseEnvironment, BILLING_ENABLED: "true" }, "BILLING_ENABLED must be explicitly false for a closed-billing release"],
-    ["malformed Easy Auth boolean", { ...validReleaseEnvironment, AZURE_EASY_AUTH_ENABLED: "yes" }, "AZURE_EASY_AUTH_ENABLED must be exactly true or false"],
+    ["malformed D1 boolean", { ...validReleaseEnvironment, CLOUDFLARE_D1_ENABLED: "yes" }, "CLOUDFLARE_D1_ENABLED must be exactly true or false"],
     ["uppercase provider boolean", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "TRUE" }, "DIRECT_GOOGLE_AUTH_ENABLED must be exactly true or false"],
     ["uppercase billing boolean", { ...validReleaseEnvironment, BILLING_ENABLED: "FALSE" }, "BILLING_ENABLED must be exactly true or false"],
   ];
@@ -413,72 +404,6 @@ test("ordinary releases reject unsafe identity provider and billing combinations
     expect(result.status, label).toBe(1);
     expect(result.stderr, label).toContain(message);
     expect(`${result.stdout}${result.stderr}`, label).not.toContain(validReleaseEnvironment.IDENTITY_LINK_HMAC_SECRET);
-  }
-
-  const externalOnly = spawnSync(process.execPath, [releaseScript], {
-    cwd: root,
-    env: {
-      ...validReleaseEnvironment,
-      DIRECT_GOOGLE_AUTH_ENABLED: "false",
-      EXPECTED_AUTH_MODE: "external-id",
-      EXTERNAL_ID_AUTH_ENABLED: "true",
-      EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "true",
-      EXTERNAL_ID_CLIENT_ID: "external-client-id",
-      EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0",
-      EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration",
-    },
-    encoding: "utf8",
-  });
-  expect(externalOnly.status, externalOnly.stderr).toBe(0);
-  expect(`${externalOnly.stdout}${externalOnly.stderr}`).not.toContain("external-client-id");
-});
-
-test("managed provider evidence uses environment-neutral output and exactly matches the requested mode", () => {
-  const run = (state: unknown, expected: "direct-google" | "migration-dual") => spawnSync(
-    process.execPath,
-    [providerStateScript, expected],
-    { cwd: root, input: JSON.stringify(state), encoding: "utf8" },
-  );
-
-  for (const [state, expected] of [
-    [{ google: true, filosage: false }, "direct-google"],
-    [{ google: true, filosage: true }, "migration-dual"],
-  ] as const) {
-    const result = run(state, expected);
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain("Managed authentication provider state matches the requested mode.");
-    expect(`${result.stdout}${result.stderr}`).not.toMatch(/\bQA\b|application gate/i);
-  }
-
-  for (const [label, state, expected, message] of [
-    ["Google disabled", { google: false, filosage: false }, "direct-google", "Direct Google managed authentication must remain enabled."],
-    ["Filosage missing", { google: true, filosage: null }, "direct-google", "Managed authentication provider state is invalid."],
-    ["dual provider missing", { google: true, filosage: false }, "migration-dual", "Filosage managed authentication state does not match the requested mode."],
-    ["unexpected provider enabled", { google: true, filosage: true }, "direct-google", "Filosage managed authentication state does not match the requested mode."],
-    ["unexpected metadata", { google: true, filosage: false, clientId: "do-not-print-this" }, "direct-google", "Managed authentication provider state is invalid."],
-  ] as const) {
-    const result = run(state, expected);
-    expect(result.status, label).toBe(1);
-    expect(result.stderr, label).toContain(message);
-    expect(`${result.stdout}${result.stderr}`, label).not.toContain("do-not-print-this");
-    expect(`${result.stdout}${result.stderr}`, label).not.toMatch(/\bQA\b|application gate/i);
-  }
-
-  for (const [label, input, expected, message] of [
-    ["invalid JSON", "not-json", "direct-google", "Managed authentication provider state is invalid."],
-    ["oversized input", JSON.stringify({ google: true, filosage: false, padding: "x".repeat(1_024) }), "direct-google", "Managed authentication provider state is invalid."],
-    ["boolean-shaped legacy mode", JSON.stringify({ google: true, filosage: false }), "false", "Expected authentication mode must be direct-google or migration-dual."],
-    ["unsupported external-only mode", JSON.stringify({ google: true, filosage: false }), "external-id", "Expected authentication mode must be direct-google or migration-dual."],
-  ] as const) {
-    const result = spawnSync(process.execPath, [providerStateScript, expected], {
-      cwd: root,
-      input,
-      encoding: "utf8",
-    });
-    expect(result.status, label).toBe(1);
-    expect(result.stderr, label).toContain(message);
-    expect(`${result.stdout}${result.stderr}`, label).not.toContain("padding");
-    expect(`${result.stdout}${result.stderr}`, label).not.toMatch(/\bQA\b|application gate/i);
   }
 });
 
@@ -509,16 +434,6 @@ test("production health verifies and reports only the bounded authentication mod
     expect(healthy.status, healthy.stderr).toBe(0);
     expect(healthy.stdout).toContain(`Production health is healthy (version ${version}, authentication direct-google).`);
 
-    const mismatch = await runNodeScript(healthScript, [origin, version], {
-      ...process.env,
-      ...manifestEnvironment(),
-      EXPECTED_SITE_ORIGIN: "https://release.example",
-      EXPECTED_IMAGE_DIGEST: healthDigest,
-      EXPECTED_AUTH_MODE: "external-id",
-    });
-    expect(mismatch.timedOut).toBe(false);
-    expect(mismatch.status).toBe(1);
-    expect(mismatch.stderr).toContain("authentication mode mismatch");
   });
 
   const invalidExpectedMode = spawnSync(process.execPath, [healthScript, "https://release.example", version], {
@@ -527,7 +442,7 @@ test("production health verifies and reports only the bounded authentication mod
     encoding: "utf8",
   });
   expect(invalidExpectedMode.status).toBe(1);
-  expect(invalidExpectedMode.stderr).toContain("EXPECTED_AUTH_MODE must be direct-google, external-id, or migration-dual");
+  expect(invalidExpectedMode.stderr).toContain("EXPECTED_AUTH_MODE must be direct-google");
   expect(`${invalidExpectedMode.stdout}${invalidExpectedMode.stderr}`).not.toContain("provider-id-secret");
 });
 

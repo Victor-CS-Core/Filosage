@@ -5,7 +5,7 @@ import { join, relative } from 'node:path';
 import { mock } from 'node:test';
 const directory = await mkdtemp(join(tmpdir(), 'filosage-lifecycle-'));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
-process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
+process.env.NODE_ENV = 'test'; process.env.CLOUDFLARE_D1_ENABLED = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
 const documents = await import('../../src/lib/document-store.ts');
 const lifecycle = await import('../../src/lib/account-lifecycle.ts');
 const runtime = await import('../../src/lib/runtime-config.ts');
@@ -125,9 +125,9 @@ try {
   assert.equal((await deletion(notStarted)).status, 202);
   // Exclusive assets are removed only after upload is terminal; shared assets survive explicitly.
   const exclusiveId = 'a'.repeat(32); const sharedId = 'b'.repeat(32);
-  await documents.putStoredDocument(`courseBannerAssets/${sharedId}`, { contentType: 'image/webp', storage: 'azure-blob' });
+  await documents.putStoredDocument(`courseBannerAssets/${sharedId}`, { contentType: 'image/webp', storage: 'r2' });
   const assets = await seed([
-    (uid, generation) => ({ path: `courseBannerAssets/${exclusiveId}`, data: { ownerUid: uid, accountGeneration: generation, ownership: 'exclusive', status: 'uploading', storage: 'azure-blob' } }),
+    (uid, generation) => ({ path: `courseBannerAssets/${exclusiveId}`, data: { ownerUid: uid, accountGeneration: generation, ownership: 'exclusive', status: 'uploading', storage: 'r2' } }),
     uid => ({ path: `courses/shared-asset-course`, data: { authorId: uid, banner: { assetId: sharedId } } }),
   ]);
   const uploading = await deletion(assets); assert.equal(uploading.status, 409);
@@ -146,7 +146,7 @@ try {
   const retainedAssetId = 'c'.repeat(32);
   await lifecycle.runWithAccountGeneration(author.generation, () => documents.putStoredDocuments([
     { path: `courses/${courseId}`, data: { authorId: author.uid, topic: 'Shared course', banner: { assetId: retainedAssetId } } },
-    { path: `courseBannerAssets/${retainedAssetId}`, data: { ownerUid: author.uid, accountGeneration: author.generation.generation, ownership: 'exclusive', status: 'uploaded', storage: 'azure-blob' } },
+    { path: `courseBannerAssets/${retainedAssetId}`, data: { ownerUid: author.uid, accountGeneration: author.generation.generation, ownership: 'exclusive', status: 'uploaded', storage: 'r2' } },
   ]));
   const snapshot = { course: { topic: 'Shared course' }, generatedAt: new Date().toISOString(), learnerWork: 'private learner B work' };
   const share = await lifecycle.runWithAccountGeneration(learner.generation, async () => {

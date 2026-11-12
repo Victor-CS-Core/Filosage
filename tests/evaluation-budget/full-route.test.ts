@@ -21,7 +21,7 @@ import { budgetState, callCounts, newRun, plannedLessonIds, runFullCourseEvaluat
 import { openCheckpointDirectory } from "../../evals/course-pipeline/checkpoints.ts";
 import { httpEvaluationBackend } from "../../evals/course-pipeline/http-backend.ts";
 
-if (process.env.OPENAI_API_KEY || process.env.DATABASE_URL || process.env.NODE_ENV === "production") throw new Error("Full route fixture requires local isolation and no provider credentials.");
+if (process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true" || process.env.NODE_ENV === "production") throw new Error("Full route fixture requires local isolation and no provider credentials.");
 const directory = mkdtempSync(join(tmpdir(), "evaluation-full-route-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 after(() => rmSync(directory, { recursive: true, force: true }));

@@ -25,7 +25,7 @@ Every new paid Checkout requires the versioned age, U.S.-residency, and automati
 Do not enable billing until all of the following are true:
 
 1. Production health checks pass against the intended release version.
-2. Azure Database for PostgreSQL automated backups are in the required recovery window, `.github/workflows/azure-backup-evidence.yml` has recorded that window, and a point-in-time restore rehearsal has been completed on a separate non-production recovery server. The evidence workflow does not restore data.
+2. The approved D1 and R2 backup/export procedure has current evidence, and a restore rehearsal has been completed against isolated non-production bindings.
 3. Critical operational alerts reach an independently monitored destination.
 4. Stripe Live products, monthly and annual prices, webhook endpoint, explicit customer-portal configuration ID and four-Price catalog, tax behavior, and statement descriptor have been reviewed.
 5. The full lifecycle test matrix below passes with Stripe test objects.
@@ -37,7 +37,7 @@ Do not enable billing until all of the following are true:
 
 Paid activation also requires four public, owner-approved disclosure values in the release environment: `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL`. The Terms and Privacy Notice render these values without committing a private address to source control. Missing values must leave the public documents in a paid-launch-pending state and must fail the billing-activation release check. The owner must review the exact rendered production text before activation; private Stripe identity verification is not a substitute for public customer-facing disclosure.
 
-For an ordinary release, set `SITE_VERSION` and `EXPECTED_SITE_VERSION` to the approved full Git commit SHA, provide the reviewed manifest/auth/origin values described in `docs/RELEASE_CAPABILITIES.md`, and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false` and permits only `closed` or fully ready `configured` rollout mode. After deployment, verify the inactive revision's candidate artifact and follow `docs/BLUE_GREEN_BFF_OPERATIONS.md` and `docs/RELEASE_CAPABILITIES.md`: health checks require the full SHA, approved image digest, exact canonical origin, reviewed auth mode, and the capability manifest. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, legal, tax, and checkout configuration plus `BILLING_ENABLED=true` and either `canary` or `open` rollout mode.
+For an ordinary release, set `SITE_VERSION` and `EXPECTED_SITE_VERSION` to the approved full Git commit SHA, provide the reviewed manifest, direct-Google auth, and origin values described in `docs/RELEASE_CAPABILITIES.md`, and run `npm run check:release`; this check requires `BILLING_ENABLED=false` and permits only `closed` or fully ready `configured` rollout mode. After an approved deployment, verify the exact Worker version/deployment and follow `docs/PRODUCTION_OPERATIONS.md` and `docs/RELEASE_CAPABILITIES.md`. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, legal, tax, and checkout configuration plus `BILLING_ENABLED=true` and either `canary` or `open` rollout mode.
 
 ## Product release readiness register
 
@@ -50,9 +50,9 @@ This register is the consolidated source for unresolved release dependencies. Th
 This is the persistent outcome checklist for the August 25 release-readiness execution tracked in Multica as `FILOSAGE-35`. The detailed gates later in this runbook remain authoritative; an item below is complete only when its corresponding detailed gates have current evidence.
 
 - [ ] Reconcile the exact release candidate across local `HEAD`, `origin/main`, CI, deployment source, hosted `SITE_VERSION`, and `/api/health`, then pass the full repository validation and security suite.
-- [ ] Complete a non-production Azure PostgreSQL restore rehearsal and retain representative account, course, lesson, progress, publication, command-center, and entitlement evidence.
+- [ ] Complete an isolated D1 and R2 restore rehearsal and retain representative account, course, lesson, progress, publication, command-center, and entitlement evidence.
 - [ ] Prove independently monitored operational alert delivery, signature verification, deduplication, escalation ownership, recovery notification, and external uptime monitoring.
-- [ ] Pass signed-in Google, email, and linked-identity acceptance on an isolated runtime using the reviewed authentication mode.
+- [ ] Pass signed-in Google acceptance on an isolated runtime using direct OAuth.
 - [ ] Prove monitored support/privacy inboxes, owner support and audit workflows, lifecycle-email delivery, bounce, unsubscribe, suppression, renewal, failed-payment, cancellation, and recovery behavior.
 - [ ] Verify Stripe Live catalog, restricted branded Customer Portal, tax posture, webhook configuration, and the complete signed sandbox subscription lifecycle without creating any Live transactional object.
 - [ ] Resolve open high-risk safety/privacy/content reports and collect owner or qualified-adviser approval for the exact legal, tax, retention, recovery, and public-disclosure decisions that cannot be inferred from code.
@@ -77,9 +77,9 @@ This is the persistent outcome checklist for the August 25 release-readiness exe
 
 ### Required before relying on production for valuable learner data
 
-- [x] Confirm Azure PostgreSQL automated backups and seven-day point-in-time restore are configured for the production Flexible Server. Manual Azure read-back on 2026-08-25 found the server Ready with seven-day retention and earliest restore time `2026-08-19T23:49:00.309738+00:00`.
-- [ ] Retain a current recovery-window observation with the server, earliest restore time, retention period, timestamp, workflow run, and operator. This metadata does not prove that a restore succeeds.
-- [ ] Restore the latest Azure PostgreSQL backup into a separate non-production recovery server and verify representative account, course, lesson, progress, publication, command-center, and entitlement records. Never rehearse restoration against production.
+- [ ] Approve and document the exact D1 and R2 backup/export, retention, and restore procedure.
+- [ ] Retain a current backup/export observation with the database and bucket identifiers, timestamp, evidence location, and operator. This metadata does not prove that a restore succeeds.
+- [ ] Restore the latest approved D1 and R2 recovery copies into isolated non-production bindings and verify representative account, course, lesson, progress, publication, command-center, and entitlement records. Never rehearse restoration against production.
 - [ ] Approve a retention schedule covering backup retention, application records, audit evidence, consent records, support cases, deletion tombstones, and legally required holds.
 - [ ] Establish a resumable process for partially completed account deletion and a verified manual owner-account transfer or service-shutdown procedure.
 - [ ] Until these controls pass, treat production data as operationally under-protected and avoid collecting data whose loss cannot be accepted.
@@ -93,8 +93,7 @@ This is the persistent outcome checklist for the August 25 release-readiness exe
 - [ ] Configure an external monitor for `/api/health` at a one-to-five-minute interval, alerting after two consecutive failures and again on recovery.
 - [ ] Confirm the support address is actively monitored and run a signed-in owner acceptance test for support intake, owner documentation, the content-report queue, command-center review-only drafts, and audit evidence on the exact hosted release.
 - [ ] Configure a transactional email provider and live-test consent, required notices, delivery, bounce handling, unsubscribe, suppression, cancellation confirmation, renewal, and failed-payment messaging before sending lifecycle email.
-- [ ] Verify backup and alert service-account permissions use the minimum required roles and that secrets are stored only in the hosted secret store.
-  - Automation evidence: `.github/workflows/azure-backup-evidence.yml` is concurrency-locked, records only Azure's current managed-backup recovery window, and retains that observation for 90 days. It does not perform or prove a restore, and a current live run plus a separate non-production recovery rehearsal are still required before checking this gate.
+- [ ] Verify recovery and alert permissions use the minimum required roles and that secrets are stored only in Workers secrets.
 
 ### Required before paid activation
 
@@ -119,7 +118,7 @@ This is the persistent outcome checklist for the August 25 release-readiness exe
 
 ## Course-generation release acceptance
 
-Before deploying a course-schema or generation-prompt change, use production-like Azure PostgreSQL, Azure Blob, Easy Auth, and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
+Before deploying a course-schema or generation-prompt change, use production-like D1, R2, direct Google OAuth, and OpenAI configuration to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
 
 1. The outline passes the current course quality gate and visibly advances one artifact through distinct milestones.
 2. At least one generated lesson for each of the six teaching modes opens, reloads, preserves its draft, and stores meaningful active-lesson evidence at completion.

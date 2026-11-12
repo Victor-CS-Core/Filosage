@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { NextResponse } from "next/server";
 
-if (process.env.OPENAI_API_KEY || process.env.DATABASE_URL || process.env.NODE_ENV === "production") {
+if (process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true" || process.env.NODE_ENV === "production") {
   throw new Error("Generic route recovery fixtures require isolated local mode without provider credentials.");
 }
 
@@ -1715,7 +1715,7 @@ for (const product of ["baseline", "capstone", "flashcards"] as const) {
       env: {
         ...process.env,
         NODE_ENV: "test",
-        DATABASE_URL: "",
+        CLOUDFLARE_D1_ENABLED: "",
         OPENAI_API_KEY: "",
         F6_PRODUCT: product,
         F6_UID: uid,

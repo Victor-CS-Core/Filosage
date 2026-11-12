@@ -9,8 +9,7 @@ import { providerDisplayName } from "@/lib/display-name";
 /**
  * Standalone Google OAuth for Cloudflare Workers.
  *
- * Azure Easy Auth (/.auth/login/google) does not exist on Cloudflare, so this
- * module implements the OAuth 2.0 authorization-code flow directly:
+ * This module implements the OAuth 2.0 authorization-code flow directly:
  *   1. GET /api/auth/google -> redirect to Google with state + PKCE
  *   2. GET /api/auth/google/callback -> validate state, exchange code for tokens,
  *      verify the ID token against Google's JWKS, establish a signed session cookie

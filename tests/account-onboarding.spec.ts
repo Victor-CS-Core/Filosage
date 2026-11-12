@@ -15,10 +15,6 @@ const sameEmailAuthorization = {
   "X-Reauthentication-Token": `playwright-preaccount-same-email-learner-${onboardingRun}`,
 };
 
-const disabledExternalSignupAuthorization = {
-  Authorization: "Bearer playwright-external-signup-disabled",
-};
-
 const firstDisplayNameAuthorization = {
   Authorization: `Bearer playwright-display-name-first-${displayRun}`,
   "X-Reauthentication-Token": `playwright-display-name-first-${displayRun}`,
@@ -207,7 +203,7 @@ test("same-email identities receive bounded link-required state without account 
     expect(acceptance.headers()["cache-control"]).toBe("private, no-store");
     expect(await acceptance.json()).toEqual({
       code: "identity_link_required",
-      error: "This email is already connected to a Filosage learning account. Confirm your existing sign-in to connect the new method.",
+      error: "This Google identity conflicts with an existing Filosage account record.",
     });
 
     const unchangedAccount = await request.get("/api/account", { headers: sameEmailAuthorization });
@@ -224,33 +220,6 @@ test("same-email identities receive bounded link-required state without account 
       data: { confirmation: "DELETE MY ACCOUNT" },
     });
     expect(cleanup.ok()).toBe(true);
-  }
-});
-
-test("inactive External ID signup returns bounded retry guidance without durable writes", async ({ request }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium", "One isolated server-side signup-gate contract is sufficient.");
-
-  const acceptance = await request.post("/api/legal/acceptance", {
-    headers: disabledExternalSignupAuthorization,
-    data: {
-      termsVersion: TERMS_VERSION,
-      privacyVersion: PRIVACY_VERSION,
-      ageEligibilityConfirmed: true,
-      source: "signup",
-    },
-  });
-
-  expect(acceptance.status()).toBe(503);
-  expect(acceptance.headers()["cache-control"]).toBe("private, no-store");
-  expect(acceptance.headers()["retry-after"]).toBe("300");
-  expect(await acceptance.json()).toEqual({
-    code: "external_id_signup_unavailable",
-    error: "Email-code sign-up is not available yet. You can continue with Google.",
-  });
-
-  const store = await readPlaywrightOwnedStore(testInfo);
-  for (const path of rejectedRegistrationPaths("local-external-signup-disabled")) {
-    expect(store[path], `${path} must not be created while External ID signup is inactive.`).toBeUndefined();
   }
 });
 

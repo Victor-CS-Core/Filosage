@@ -107,7 +107,7 @@ async function reusableIllustration(
   const asset = await getStoredDocument(`courseIllustrationAssets/${assetId}`);
   if (!asset || asset.contentType !== "image/webp" || (asset.status && asset.status !== "uploaded")) return null;
   if (asset.kind !== kind) return null;
-  const available = asset.storage === "azure-blob" || typeof asset.data === "string";
+  const available = asset.storage === "r2" || typeof asset.data === "string";
   if (!available) return null;
   const illustration: CourseIllustration | CourseBanner = kind === "hero"
     ? { assetId, version: 1, generatedAt: typeof asset.createdAt === "string" ? asset.createdAt : undefined }
@@ -301,7 +301,7 @@ export async function createOrReuseCourseIllustration(
     if (budgetReservation && input.courseId) {
       await settleCourseIllustrationBudget(input.courseId, budgetReservation, "released").catch(() => undefined);
     }
-    // An unknown Azure outcome retains the uploading marker for manual recovery.
+    // An unknown object-store outcome retains the uploading marker for manual recovery.
     if (ownsGeneration) {
       await runStoredDocumentTransaction([keyPath], (documents) => ({ writes: documents[keyPath]?.claimId === claimId ? [{ path: keyPath, data: {
         status: "failed",

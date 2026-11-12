@@ -9,7 +9,7 @@ import {
 // A sender can observe HTTP acceptance, but cannot establish receiver durability
 // or independent paging. Those require separately retained operator evidence.
 export function operationalAlertTransportEvidence(result: OperationalAlertDeliveryResult, metadata: {
-  resourceGroup: string | null;
+  environment: string;
   releaseSha: string | null;
 }) {
   if (!result.ok || result.status === null || result.status < 200 || result.status >= 300) {

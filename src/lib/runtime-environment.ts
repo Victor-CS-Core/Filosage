@@ -1,2 +1,2 @@
-/** Azure Container Apps and local Node processes expose server configuration here. */
+/** Cloudflare Workers and local Node processes expose server configuration here. */
 export const serverEnvironment = process.env;

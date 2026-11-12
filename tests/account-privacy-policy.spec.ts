@@ -81,9 +81,6 @@ test("recent authentication accepts a newly linked provider only for the same ca
     auth_time: now,
     providerIdentity: {
       ...current.providerIdentity,
-      provider: "filosage",
-      issuer: "https://qa-filosage.ciamlogin.com/tenant/v2.0",
-      subject: "external-subject",
       authTime: now,
     },
   } satisfies VerifiedUser;

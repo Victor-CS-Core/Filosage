@@ -5,7 +5,7 @@ import { join, relative } from 'node:path';
 import { mock } from 'node:test';
 const directory = await mkdtemp(join(tmpdir(), 'filosage-banner-deletion-'));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
-process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = '';
+process.env.NODE_ENV = 'test'; process.env.CLOUDFLARE_D1_ENABLED = '';
 process.env.OPENAI_API_KEY = 'fixture-only-no-network'; process.env.COURSE_BANNERS_ENABLED = 'true';
 const documents = await import('../../src/lib/document-store.ts');
 const lifecycle = await import('../../src/lib/account-lifecycle.ts');
@@ -17,7 +17,7 @@ mock.module(new URL('../../src/lib/course-banner-storage.ts', import.meta.url).h
   ...storage,
   async storeCourseBannerObject(assetId) {
     const index = uploads.length; uploads.push(assetId); started[index].resolve();
-    await finish[index].promise; objects.add(assetId); return 'azure-blob';
+    await finish[index].promise; objects.add(assetId); return 'r2';
   },
   async deleteExclusiveCourseBannerObject(assetId, asset) { assert.equal(asset.ownership, 'exclusive'); objects.delete(assetId); },
 } });

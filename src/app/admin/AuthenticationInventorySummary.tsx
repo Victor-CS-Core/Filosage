@@ -1,9 +1,9 @@
-import type { AzureInfrastructure } from "@/lib/azure-infrastructure";
+import type { CloudflareInfrastructure } from "@/lib/cloudflare-infrastructure";
 
 export function AuthenticationInventorySummary({
   authentication,
 }: {
-  authentication: AzureInfrastructure["authentication"];
+  authentication: CloudflareInfrastructure["authentication"];
 }) {
   const ready = authentication.configured && authentication.mode !== "unavailable";
   return (

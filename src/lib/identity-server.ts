@@ -1,7 +1,5 @@
-import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import "server-only";
 
-import { easyAuthIdentityFromHeaders } from "@/lib/easy-auth-principal";
 import { resolveCanonicalIdentity } from "@/lib/identity-link-server";
 import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
@@ -103,70 +101,7 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
       "Same-email Learner",
     );
   }
-  if (idToken === "playwright-external-signup-disabled") {
-    const uid = "local-external-signup-disabled";
-    const email = "external-signup-disabled@filosage.local";
-    return {
-      uid,
-      email,
-      email_verified: true,
-      auth_time,
-      name: "External signup disabled",
-      providerIdentity: {
-        provider: "filosage",
-        issuer: "https://local-external-id.filosage.invalid/tenant/v2.0",
-        subject: uid,
-        email,
-        emailVerified: true,
-        authTime: auth_time,
-        name: "External signup disabled",
-      },
-      identityLinkRegistered: false,
-    };
-  }
-  // A UUID-bounded, local-mode-only fixture exercises the two real provider
-  // contracts without introducing a deployed authentication bypass.
-  const linkIdentity = /^playwright-link-(google|filosage)-([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(idToken);
-  if (linkIdentity) {
-    const provider = linkIdentity[1].toLowerCase() as "google" | "filosage";
-    const runId = linkIdentity[2].toLowerCase();
-    const subject = `${provider}-${runId}`;
-    const email = `identity-link-${runId}@filosage.local`;
-    return {
-      uid: subject,
-      email,
-      email_verified: true,
-      auth_time,
-      name: "Identity Link Learner",
-      providerIdentity: {
-        provider,
-        issuer: provider === "google"
-          ? "https://accounts.google.com"
-          : "https://local-external-id.filosage.invalid/tenant/v2.0",
-        subject,
-        email,
-        emailVerified: true,
-        authTime: auth_time,
-        name: "Identity Link Learner",
-      },
-      identityLinkRegistered: false,
-    };
-  }
   return null;
-}
-
-/**
- * Reads claims injected by the Azure Container Apps authentication sidecar.
- * Azure removes these headers from external requests before adding its own,
- * and this path is enabled only in the deployed Easy Auth runtime.
- */
-export function verifiedEasyAuthIdentity(request: Request): VerifiedProviderIdentity | null {
-  return easyAuthIdentityFromHeaders(request.headers, authenticationRuntimeConfiguration());
-}
-
-export async function verifiedEasyAuthUser(request: Request) {
-  const identity = verifiedEasyAuthIdentity(request);
-  return identity ? resolveCanonicalIdentity(identity) : null;
 }
 
 export async function verifyProviderIdentity(idToken: string): Promise<VerifiedProviderIdentity | null> {

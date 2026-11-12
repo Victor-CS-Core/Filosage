@@ -17,7 +17,7 @@ assert(scenario === 'monthly-cap' || scenario === 'recorded-at-window', `unknown
 
 const directory = await mkdtemp(join(tmpdir(), 'filosage-credit-limits-'));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
-process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
+process.env.NODE_ENV = 'test'; process.env.CLOUDFLARE_D1_ENABLED = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
 const documents = await import('../../src/lib/document-store.ts');
 const lifecycle = await import('../../src/lib/account-lifecycle.ts');
 const { DELETE } = await import('../../src/app/api/courses/[courseId]/route.ts');

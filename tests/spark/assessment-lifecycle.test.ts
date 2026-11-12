@@ -11,7 +11,7 @@ import type { ServerAccount } from "../../src/lib/account-server.ts";
 import type { SparkLessonContext } from "../../src/lib/spark/access.ts";
 import type { SparkSessionRecord } from "../../src/lib/spark/repository.ts";
 
-if (process.env.OPENAI_API_KEY || process.env.DATABASE_URL || process.env.NODE_ENV === "production") throw new Error("Spark lifecycle tests require isolated fixtures.");
+if (process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true" || process.env.NODE_ENV === "production") throw new Error("Spark lifecycle tests require isolated fixtures.");
 mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-30T12:00:00.000Z") });
 after(() => mock.timers.reset());
 const directory = mkdtempSync(join(tmpdir(), "spark-assessment-"));

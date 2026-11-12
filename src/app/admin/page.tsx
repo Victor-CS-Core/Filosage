@@ -458,52 +458,50 @@ export default function AdminPage() {
             <section className={`admin-cost-status is-${data.infrastructure.status}`}>
               <span><Database size={22} /></span>
               <div>
-                <h2>Azure infrastructure</h2>
+                <h2>Cloudflare infrastructure</h2>
                 <p>{data.infrastructure.status === "configured"
                   ? `Runtime configuration verified through ${shortDate(data.infrastructure.generatedAt, true)}.`
                   : data.infrastructure.status === "local"
                     ? "Cloud infrastructure is intentionally not requested in local mode."
-                    : "One or more required Azure runtime services are not configured."}</p>
+                    : "One or more required Cloudflare runtime services are not configured."}</p>
               </div>
               <strong>{data.infrastructure.status === "configured" ? "Configured" : "Not ready"}<small>runtime status</small></strong>
             </section>
 
-            <section className="admin-cost-metrics" aria-label="Azure infrastructure summary">
+            <section className="admin-cost-metrics" aria-label="Cloudflare infrastructure summary">
               <AuthenticationInventorySummary authentication={data.infrastructure.authentication} />
-              <article><span>Database</span><strong>{data.infrastructure.database.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.database.serverName || "PostgreSQL server name unavailable"}</small></article>
-              <article><span>Blob storage</span><strong>{data.infrastructure.storage.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.storage.container} container</small></article>
+              <article><span>Database</span><strong>{data.infrastructure.database.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.database.binding} binding</small></article>
+              <article><span>Object storage</span><strong>{data.infrastructure.storage.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.storage.binding} binding</small></article>
               <article><span>Hosting</span><strong>{data.infrastructure.hosting.configured ? "Ready" : "Unverified"}</strong><small>{data.infrastructure.hosting.provider}</small></article>
             </section>
 
             <div className="admin-cost-grid">
               <section className="admin-panel admin-cost-breakdown">
-                <header><div><h2>Azure service boundary</h2><span>Production runtime inventory</span></div><Coins size={19} /></header>
+                <header><div><h2>Cloudflare service boundary</h2><span>Production runtime inventory</span></div><Coins size={19} /></header>
                 <dl>
                   <div><dt>Application runtime</dt><dd>{data.infrastructure.hosting.provider}</dd></div>
                   <div><dt>Identity</dt><dd>{data.infrastructure.authentication.provider}</dd></div>
                   <div><dt>Document persistence</dt><dd>{data.infrastructure.database.provider}</dd></div>
                   <div><dt>Generated banners</dt><dd>{data.infrastructure.storage.provider}</dd></div>
                   <div><dt>Logs and metrics</dt><dd>{data.infrastructure.observability.provider}</dd></div>
-                  <div><dt>Database recovery window</dt><dd>{data.infrastructure.database.backupRetentionDays} days</dd></div>
                 </dl>
-                <p>Measured spend belongs in Azure Cost Management. Filosage does not estimate an invoice from request counts.</p>
+                <p>Measured spend belongs in Cloudflare account billing. Filosage does not estimate an invoice from request counts.</p>
               </section>
 
               <section className="admin-panel admin-service-consumption">
-                <header><div><h2>Azure readiness</h2><span>Repository-grounded service inventory</span></div><HardDrive size={19} /></header>
+                <header><div><h2>Cloudflare readiness</h2><span>Repository-grounded service inventory</span></div><HardDrive size={19} /></header>
                 <div>
-                  <article><span><KeyRound size={16} /></span><p><strong>Authentication</strong><small>External customer identities and Google federation</small></p><em>{data.infrastructure.authentication.configured ? "Configured" : "Missing"}</em></article>
-                  <article><span><Database size={16} /></span><p><strong>PostgreSQL</strong><small>JSONB document compatibility, transactions, automated backups, and PITR</small></p><em>{data.infrastructure.database.configured ? "Configured" : "Missing"}</em></article>
-                  <article><span><HardDrive size={16} /></span><p><strong>Blob Storage</strong><small>Private generated-course banner objects</small></p><em>{data.infrastructure.storage.configured ? "Configured" : "Missing"}</em></article>
-                  <article><span><RotateCcw size={16} /></span><p><strong>Recovery</strong><small>Requires a successful separate-server restore drill</small></p><em>{data.launchReadiness.restoreDrill.ready ? "Verified" : "Pending"}</em></article>
-                  <article><span><Globe2 size={16} /></span><p><strong>Hosting</strong><small>Revisioned container deployment with exact-SHA health verification</small></p><em>{data.infrastructure.hosting.configured ? "Configured" : "Unverified"}</em></article>
+                  <article><span><KeyRound size={16} /></span><p><strong>Authentication</strong><small>Direct Google OAuth with server-side sessions</small></p><em>{data.infrastructure.authentication.configured ? "Configured" : "Missing"}</em></article>
+                  <article><span><Database size={16} /></span><p><strong>D1</strong><small>Durable document persistence and transactional application state</small></p><em>{data.infrastructure.database.configured ? "Configured" : "Missing"}</em></article>
+                  <article><span><HardDrive size={16} /></span><p><strong>R2</strong><small>Generated-course banner and illustration objects</small></p><em>{data.infrastructure.storage.configured ? "Configured" : "Missing"}</em></article>
+                  <article><span><Globe2 size={16} /></span><p><strong>Hosting</strong><small>Versioned Worker deployment with exact-SHA health verification</small></p><em>{data.infrastructure.hosting.configured ? "Configured" : "Unverified"}</em></article>
                 </div>
               </section>
             </div>
 
-            <section className="admin-cost-notes" aria-labelledby="azure-infrastructure-notes">
+            <section className="admin-cost-notes" aria-labelledby="cloudflare-infrastructure-notes">
               <TriangleAlert size={18} />
-              <div><h2 id="azure-infrastructure-notes">What this status does not claim</h2>{data.infrastructure.limitations.map((item) => <p key={item}>{item}</p>)}</div>
+              <div><h2 id="cloudflare-infrastructure-notes">What this status does not claim</h2>{data.infrastructure.limitations.map((item) => <p key={item}>{item}</p>)}</div>
             </section>
 
             <section className="admin-ai-cost-strip">
@@ -641,8 +639,6 @@ export default function AdminPage() {
                   <ReadinessItem ready={data.launchReadiness.activityReceiptsConfigured} label="Signed activity receipts" detail="Creator progression is bound to verified lesson activity." />
                   <ReadinessItem ready={data.launchReadiness.productionHealthMonitorConfigured} label="Production health target" detail="A deployment health URL is configured for release checks." />
                   <ReadinessItem ready={data.launchReadiness.operationsAlerts.ready} state={data.launchReadiness.operationsAlerts.state} label="Operational alerts" detail={data.launchReadiness.operationsAlerts.detail} />
-                  <ReadinessItem ready={data.launchReadiness.managedBackups.ready} state={data.launchReadiness.managedBackups.state} label="Managed PostgreSQL backups" detail={data.launchReadiness.managedBackups.detail} />
-                  <ReadinessItem ready={data.launchReadiness.restoreDrill.ready} state={data.launchReadiness.restoreDrill.state} label="Restore rehearsal" detail={data.launchReadiness.restoreDrill.detail} />
                 </div>
               </section>
 

@@ -292,7 +292,7 @@ test("server authorization rejects a stale or malformed account claim before acc
   `;
   const result = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--eval", script], {
     cwd: process.cwd(), encoding: "utf8", timeout: 20_000,
-    env: { ...process.env, NODE_ENV: "test", DATABASE_URL: "" },
+    env: { ...process.env, NODE_ENV: "test", CLOUDFLARE_D1_ENABLED: "" },
   });
   expect(result.status, result.stderr).toBe(0);
   expect(JSON.parse(result.stdout)).toEqual({ rows: [
@@ -306,14 +306,14 @@ test("server authorization rejects a stale or malformed account claim before acc
   ], claimOnly: null });
 });
 
-test("deployed authorization compares the account marker with the independently resolved canonical UID", () => {
+test("authorization compares the account marker with the independently resolved canonical UID", () => {
   const result = spawnSync(process.execPath, [
-    "--conditions=react-server", "--experimental-test-module-mocks", "--import", "tsx", "tests/fixtures/account-storage-server-behavior.ts",
+    "--conditions=react-server", "--import", "tsx", "tests/fixtures/account-storage-server-behavior.ts",
   ], {
     cwd: process.cwd(), encoding: "utf8", timeout: 20_000,
     env: {
-      ...process.env, NODE_ENV: "production", DATABASE_URL: "", AZURE_EASY_AUTH_ENABLED: "true",
-      DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: "false",
+      ...process.env, NODE_ENV: "production",
+      DIRECT_GOOGLE_AUTH_ENABLED: "true",
       IDENTITY_LINK_HMAC_SECRET: "account-storage-test-secret-32-characters",
     },
   });

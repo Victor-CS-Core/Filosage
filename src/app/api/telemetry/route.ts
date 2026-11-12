@@ -64,7 +64,7 @@ async function handlePOST(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: "Invalid traffic event." }, { status: 400 });
     }
-    if (!isLocalMode() && !serverEnvironment.DATABASE_URL?.trim()) {
+    if (!isLocalMode() && serverEnvironment.CLOUDFLARE_D1_ENABLED !== "true") {
       return new Response(null, { status: 204 });
     }
 

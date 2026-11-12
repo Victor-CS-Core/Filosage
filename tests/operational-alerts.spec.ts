@@ -9,7 +9,7 @@ import { operationalAlertTransportEvidence } from "../scripts/operations-script-
 
 const event = {
   severity: "critical" as const,
-  code: "backup.postgres_failed",
+  code: "backup.d1_failed",
   message: "The backup failed.",
   deduplicationKey: "operation-123",
   context: { projectId: "filosage", secret: "safe operational detail" },
@@ -118,13 +118,13 @@ test("network failures retain exponential backoff and permanent rejections never
 
 test("HTTP delivery evidence never attests receiver durability or independent monitoring", () => {
   const delivery = { ok: true, alertId: "fa_fixture", occurredAt: "2026-09-06T00:00:00Z", attempts: 1, status: 204, error: null };
-  const evidence = operationalAlertTransportEvidence(delivery, { resourceGroup: null, releaseSha: "a".repeat(40) });
+  const evidence = operationalAlertTransportEvidence(delivery, { environment: "fixture", releaseSha: "a".repeat(40) });
   expect(evidence).toMatchObject({
     evidenceType: "signed_alert_http_delivery", status: "transport_accepted", receiverStatus: 204,
     receiverDurableAcknowledgement: "unverified", independentReceiverMonitoring: "unverified",
   });
   for (const failure of [{ ...delivery, ok: false }, { ...delivery, status: 503 }, { ...delivery, status: null }]) {
-    expect(() => operationalAlertTransportEvidence(failure, { resourceGroup: null, releaseSha: null })).toThrow(/failed alert delivery/);
+    expect(() => operationalAlertTransportEvidence(failure, { environment: "fixture", releaseSha: null })).toThrow(/failed alert delivery/);
   }
 });
 

@@ -215,7 +215,7 @@ test("a Spark 401 with an ended central session asks for sign-in without leaving
   let expired = false;
   await page.route("**/api/auth/session", route => route.fulfill({ json: {
     user: expired ? null : { uid: "local-owner" },
-    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+    authentication: { primaryProvider: "google", googleAvailable: true },
   } }));
   await page.route("**/api/courses/spark-ui-course", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/spark-ui-course/lessons/0-0", (route) => route.fulfill({ json: lesson }));

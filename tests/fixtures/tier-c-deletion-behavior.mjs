@@ -11,7 +11,7 @@ import { mock } from 'node:test';
 // CourseRootDeletion change and its own tests.
 const directory = await mkdtemp(join(tmpdir(), 'filosage-tier-c-deletion-'));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
-process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
+process.env.NODE_ENV = 'test'; process.env.CLOUDFLARE_D1_ENABLED = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
 const documents = await import('../../src/lib/document-store.ts');
 const lifecycle = await import('../../src/lib/account-lifecycle.ts');
 const illustrationStorage = await import('../../src/lib/course-illustration-storage.ts');
@@ -48,8 +48,8 @@ try {
   const courseId = `tier-c-course-${crypto.randomUUID()}`;
   const author = await seed([
     uid => ({ path: `courses/${courseId}`, data: { authorId: uid, topic: 'Knife skills', banner: { assetId: heroId, version: 1 }, modules: [{ title: 'Grip', illustration: { assetId: moduleId, version: 1, kind: 'module' } }] } }),
-    (uid, generation) => ({ path: `courseIllustrationAssets/${heroId}`, data: { ownerUid: uid, accountGeneration: generation, ownership: 'exclusive', status: 'uploaded', storage: 'azure-blob', kind: 'hero', contentType: 'image/webp' } }),
-    (uid, generation) => ({ path: `courseIllustrationAssets/${moduleId}`, data: { ownerUid: uid, accountGeneration: generation, ownership: 'exclusive', status: 'uploaded', storage: 'azure-blob', kind: 'module', contentType: 'image/webp' } }),
+    (uid, generation) => ({ path: `courseIllustrationAssets/${heroId}`, data: { ownerUid: uid, accountGeneration: generation, ownership: 'exclusive', status: 'uploaded', storage: 'r2', kind: 'hero', contentType: 'image/webp' } }),
+    (uid, generation) => ({ path: `courseIllustrationAssets/${moduleId}`, data: { ownerUid: uid, accountGeneration: generation, ownership: 'exclusive', status: 'uploaded', storage: 'r2', kind: 'module', contentType: 'image/webp' } }),
     (uid, generation) => ({ path: `courseIllustrationKeys/${keyId}`, data: { ownerUid: uid, accountGeneration: generation, status: 'ready', assetId: heroId, kind: 'hero' } }),
     () => ({ path: `courseIllustrationBudgets/${courseId}`, data: { courseId, tier: 'pro', capMicros: 220_000, reservations: {}, spentMicros: 17_000 } }),
     uid => ({ path: `users/${uid}/courseCreditRefunds/old-course`, data: { uid, courseId: 'old-course', refundedAt: new Date().toISOString(), monthKey: '2026-09' } }),
@@ -68,7 +68,7 @@ try {
   // scope may record only the upload outcome, even while the account is fenced.
   const uploadingId = '3'.repeat(32);
   const uploader = await seed([
-    (uid, generation) => ({ path: `courseIllustrationAssets/${uploadingId}`, data: { ownerUid: uid, accountGeneration: generation, claimId: 'upload-claim', ownership: 'exclusive', status: 'uploading', storage: 'azure-blob', kind: 'lesson', contentType: 'image/webp' } }),
+    (uid, generation) => ({ path: `courseIllustrationAssets/${uploadingId}`, data: { ownerUid: uid, accountGeneration: generation, claimId: 'upload-claim', ownership: 'exclusive', status: 'uploading', storage: 'r2', kind: 'lesson', contentType: 'image/webp' } }),
   ]);
   const waiting = await deletion(uploader);
   assert.equal(waiting.status, 409, JSON.stringify(waiting));

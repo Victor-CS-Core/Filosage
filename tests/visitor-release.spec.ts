@@ -16,7 +16,7 @@ const previewCourse = {
 
 const guestSession = {
   user: null, recentAuthentication: false,
-  authentication: { primaryProvider: "google", externalIdAvailable: false, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
+  authentication: { primaryProvider: "google", googleAvailable: true },
 };
 
 test("records an optimized visitor performance sample", async ({ browser }) => {
@@ -127,7 +127,7 @@ for (const path of ["/", "/library"]) test(`public page ${path} is usable while 
 test("an empty catalog leaves a useful exploration action and no missing featured anchor", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
     user: null, recentAuthentication: false,
-    authentication: { primaryProvider: "google", externalIdAvailable: false, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
+    authentication: { primaryProvider: "google", googleAvailable: true },
   } }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
   await page.goto("/");

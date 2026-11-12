@@ -637,8 +637,8 @@ test("a slow verified-payment return times out safely and offers recovery withou
     await sessionRestoration;
     await route.fulfill({ json: {
       recentAuthentication: true,
-      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
-      user: { uid: "checkout-learner", displayName: "Checkout Learner", email: "checkout@example.com", photoURL: null, authenticationProvider: "filosage" },
+      authentication: { primaryProvider: "google", googleAvailable: true },
+      user: { uid: "checkout-learner", displayName: "Checkout Learner", email: "checkout@example.com", photoURL: null, authenticationProvider: "google" },
     } });
   });
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));

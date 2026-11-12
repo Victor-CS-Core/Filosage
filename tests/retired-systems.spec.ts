@@ -51,7 +51,7 @@ test("retired-name scanning reports oversized minified files without buffering t
 test("hosted document access never calls a retired datastore HTTP API", async () => {
   const { readFile } = await import("node:fs/promises");
   const store = await readFile("src/lib/document-store.ts", "utf8");
-  expect(store).toContain("postgresDocumentStoreJson");
+  expect(store).toContain("d1DocumentStoreJson");
   expect(store).toContain("localDocumentStoreJson");
   expect(store).not.toContain("googleapis.com");
   expect(store).not.toContain("oauth2.googleapis.com/token");

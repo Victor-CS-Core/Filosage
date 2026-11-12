@@ -86,39 +86,5 @@ export function validReleaseOrigin(value: unknown): value is string {
     return url.protocol === "https:" && value === url.origin && !url.username && !url.password;
   } catch { return false; }
 }
-export const releaseAuthenticationModes = ["direct-google", "external-id", "migration-dual"] as const;
 export const validReleaseSha = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{40}$/.test(value);
 export const validReleaseDigest = (value: unknown): value is string => typeof value === "string" && /^sha256:[a-f0-9]{64}$/.test(value);
-/** New candidates are published only to this public GHCR repository. */
-export const releaseImageRepository = "ghcr.io/victor-cs-core/filosage";
-/** Accepted only for live, predecessor and rollback revisions until the ACR retirement is approved. */
-export const legacyReleaseImageRepository = "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage";
-export const releaseImageRepositories: readonly string[] = [releaseImageRepository, legacyReleaseImageRepository];
-export const validReleaseImage = (value: unknown): value is string => typeof value === "string"
-  && /^(?:ghcr\.io\/victor-cs-core|filosagestp4ujucgnxq3gsacr\.azurecr\.io)\/filosage@sha256:[a-f0-9]{64}$/.test(value);
-
-export interface ReleaseEvidence {
-  schemaVersion: 2;
-  sha: string;
-  imageDigest: string;
-  manifest: ReleaseManifest;
-  productionOrigin: string;
-  candidateOrigin: string;
-  authenticationMode: string;
-  appId: string;
-  revision: string;
-  label: string;
-  authConfigSha256: string;
-}
-export function releaseEvidenceMatches(value: unknown, sha: string, manifest: ReleaseManifest, productionOrigin: string): value is ReleaseEvidence {
-  return record(value) && value.schemaVersion === 2 && validReleaseSha(sha) && value.sha === sha
-    && validReleaseDigest(value.imageDigest) && validReleaseManifest(value.manifest)
-    && releaseSelectionMatches(manifest.capabilities, value.manifest.capabilities)
-    && validReleaseOrigin(productionOrigin) && value.productionOrigin === productionOrigin
-    && validReleaseOrigin(value.candidateOrigin)
-    && typeof value.appId === "string" && /^\/subscriptions\/[a-f0-9-]{36}\/resourceGroups\/[\w.-]+\/providers\/Microsoft.App\/containerApps\/[a-z0-9-]+$/i.test(value.appId)
-    && typeof value.revision === "string" && value.revision.startsWith(`${value.appId.split("/").at(-1)}--`) && /^[a-z0-9-]+$/.test(value.revision)
-    && ["blue", "green"].includes(String(value.label))
-    && typeof value.authConfigSha256 === "string" && /^[a-f0-9]{64}$/.test(value.authConfigSha256)
-    && releaseAuthenticationModes.some((mode) => mode === value.authenticationMode);
-}

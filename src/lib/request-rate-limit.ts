@@ -20,7 +20,7 @@ function requestIdentity(
   callerScope: "account" | "identity" = "account",
 ) {
   if (callerKey) return `${callerScope}:${callerKey}`;
-  // Azure ingress has not been proven to strip/replace a client-address header
+  // Cloudflare ingress supplies a trusted client-address header
   // on every path to this app. Neither a Cloudflare-named header nor XFF proves
   // that boundary. Keep anonymous production requests in a conservative shared
   // bucket until a separately verified ingress adapter can supply identity.

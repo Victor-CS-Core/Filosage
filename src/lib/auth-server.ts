@@ -2,8 +2,6 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import {
-  verifiedEasyAuthIdentity,
-  verifiedEasyAuthUser,
   verifyIdentityToken,
   verifyProviderIdentity,
   type VerifiedUser,
@@ -37,15 +35,11 @@ export async function getVerifiedUser(request: Request): Promise<VerifiedUser | 
       const mobileUser = await getMobileVerifiedUser(request);
       return mobileUser && requestAccountMatchesVerifiedUid(request.headers, mobileUser.uid) ? mobileUser : null;
     }
-    // On Cloudflare Workers there is no Azure Easy Auth; check the standalone
-    // Google OAuth session cookie first.
     const { getCloudflareVerifiedUser } = await import("@/lib/cloudflare-google-auth");
     const cloudflareUser = await getCloudflareVerifiedUser(request);
-    if (cloudflareUser) {
-      return requestAccountMatchesVerifiedUid(request.headers, cloudflareUser.uid) ? cloudflareUser : null;
-    }
-    const user = await verifiedEasyAuthUser(request);
-    return user && requestAccountMatchesVerifiedUid(request.headers, user.uid) ? user : null;
+    return cloudflareUser && requestAccountMatchesVerifiedUid(request.headers, cloudflareUser.uid)
+      ? cloudflareUser
+      : null;
   }
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -68,7 +62,8 @@ export async function requireUser(request: Request): Promise<VerifiedUser> {
 
 export async function requireProviderIdentity(request: Request) {
   const identity = !isLocalMode()
-    ? verifiedEasyAuthIdentity(request)
+    ? await (await import("@/lib/cloudflare-google-auth")).getCloudflareVerifiedUser(request)
+      .then((user) => user?.providerIdentity ?? null)
     : await verifyProviderIdentity(
         request.headers.get("authorization")?.replace(/^Bearer\s+/, "") ?? "",
       );

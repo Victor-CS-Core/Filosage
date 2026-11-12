@@ -60,7 +60,7 @@ export async function captureAccountGeneration(uid: string): Promise<AccountLife
 }
 
 // An upload started under a valid generation must record its terminal outcome
-// even if deletion fenced the account while Azure was responding.
+// even if deletion fenced the account while object storage was responding.
 export function runWithBannerUploadReceipt<T>(asset: AccountGeneration & { assetId: string; claimId?: string }, work: () => T): T {
   return accountScope.run(Object.freeze({ ...asset, kind: "banner-receipt" }), work);
 }

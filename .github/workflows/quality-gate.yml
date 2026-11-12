@@ -47,8 +47,6 @@ jobs:
         run: node scripts/ci-change-scope.mjs
       - name: Verify CI scope and release evidence safeguards
         run: node --test tests/ci/*.test.mjs tests/workflow-quality-evidence.test.mjs
-      - name: Verify maintenance access and release contracts
-        run: node --test tests/maintenance-access/*.test.mjs tests/runner-build/*.test.mjs tests/candidate-proof/*.test.mjs
       - run: npm ci
         if: steps.scope.outputs.full == 'true'
       - run: npm run lint
@@ -115,7 +113,6 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 14
-
   browser-smoke:
     needs: static-and-release-contracts
     if: needs.static-and-release-contracts.outputs.full == 'true'
@@ -143,15 +140,6 @@ jobs:
           cache: npm
       - run: npm ci
         id: dependencies
-      - name: Use upstream Ubuntu mirror for browser dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          for source_file in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
-            test -f "$source_file" || continue
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source_file"
-          done
-          printf 'Acquire::Retries "2"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";\n' | sudo tee /etc/apt/apt.conf.d/80filosage-downloads >/dev/null
       - run: npx playwright install --with-deps --only-shell chromium
         id: browsers
       - name: API regression
@@ -228,63 +216,3 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  postgres-transactions:
-    needs: static-and-release-contracts
-    if: needs.static-and-release-contracts.outputs.full == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: filosage_test
-          POSTGRES_PASSWORD: testfixture-ci-only
-          POSTGRES_DB: filosage_integration_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U filosage_test -d filosage_integration_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      # Ephemeral CI service credentials; never a repository or production secret.
-      FILOSAGE_POSTGRES_TEST_URL: postgresql://filosage_test:testfixture-ci-only@127.0.0.1:5432/filosage_integration_test # secret-scan: allow-test-fixture
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Verify release source SHA
-        shell: bash
-        env:
-          EXPECTED_RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          actual_sha="$(git rev-parse HEAD)"
-          mkdir -p test-results/postgres
-          printf '%s\n' "$actual_sha" > test-results/postgres/source-sha.txt
-          test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Verify real PostgreSQL transaction behavior
-        shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p test-results/postgres
-          npm run test:postgres 2>&1 | tee test-results/postgres/results.tap
-      - name: Verify signed billing lifecycle against PostgreSQL
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:billing 2>&1 | tee test-results/postgres/billing-results.tap
-      - name: Upload PostgreSQL transaction evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: postgres-transaction-evidence
-          path: test-results/postgres/
-          if-no-files-found: error
-          retention-days: 14

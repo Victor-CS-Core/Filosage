@@ -2,11 +2,9 @@ import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireUser } from "@/lib/auth-server";
-import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import { isOwnerUser } from "@/lib/account-server";
 import { runStoredDocumentTransaction } from "@/lib/document-store";
 import {
-  ExternalIdSignupUnavailableError,
   IdentityLinkRequiredError,
   identityRegistrationWrites,
   preparedIdentityRegistration,
@@ -33,7 +31,6 @@ async function handlePOST(request: Request) {
     const acceptedAt = new Date().toISOString();
     const id = `${TERMS_VERSION}__${PRIVACY_VERSION}`.replace(/[^a-zA-Z0-9_-]/g, "_");
     const registration = await preparedIdentityRegistration(user);
-    const authConfig = authenticationRuntimeConfiguration();
     const accountPath = `users/${user.uid}`;
     const acceptancePath = `${accountPath}/legalAcceptances/${id}`;
     const signupEventPath = `productEvents/signup-completed-${user.uid}`;
@@ -51,7 +48,6 @@ async function handlePOST(request: Request) {
         documents,
         registration,
         acceptedAt,
-        { allowNewExternalAccounts: authConfig.externalIdNewAccountsEnabled },
       );
       const hasPriorLegalAcceptance = Boolean(existingAccount)
         && (typeof existingAccount?.acceptedTermsVersion === "string"
@@ -147,15 +143,6 @@ async function handlePOST(request: Request) {
       return Response.json(
         { code: error.code, error: error.message },
         { status: 409, headers: { "Cache-Control": "private, no-store" } },
-      );
-    }
-    if (error instanceof ExternalIdSignupUnavailableError) {
-      return Response.json(
-        { code: error.code, error: error.message },
-        {
-          status: 503,
-          headers: { "Cache-Control": "private, no-store", "Retry-After": "300" },
-        },
       );
     }
     return apiRequestErrorResponse(error)

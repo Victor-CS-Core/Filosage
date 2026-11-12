@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Cloud, Mail, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import FilosageMark from "@/components/FilosageMark";
 import GoogleMark from "@/components/GoogleMark";
@@ -18,8 +18,6 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
   const {
     authentication,
     signInWithRedirect,
-    signInWithProvider,
-    useExistingGoogleSignIn: beginExistingGoogleSignIn,
     error,
     clearError,
   } = useAuth();
@@ -29,29 +27,11 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
   const dialogRef = useRef<HTMLElement>(null);
   const redirectingRef = useRef(false);
   const primaryProvider = authentication.primaryProvider;
-  const primaryAvailable = primaryProvider === "filosage"
-    ? authentication.externalIdAvailable
-    : primaryProvider === "google" && authentication.legacyGoogleAvailable;
-  const createsAccount = primaryProvider === "google"
-    ? authentication.legacyGoogleAvailable
-    : primaryProvider === "filosage" && authentication.externalIdNewAccountsAvailable;
-  const externalExistingAlternate = primaryProvider === "google"
-    && authentication.externalIdAvailable
-    && !authentication.externalIdNewAccountsAvailable;
-  const googleAlternate = primaryProvider === "filosage"
-    && authentication.externalIdNewAccountsAvailable
-    && authentication.legacyGoogleAvailable;
-  const identityCopy = primaryProvider === "filosage"
-    ? authentication.externalIdNewAccountsAvailable
-      ? authentication.legacyGoogleAvailable
-        ? "Choose Google, or we'll email you a one-time code, on the next secure screen"
-        : "We'll email you a one-time code on the next secure screen"
-      : "Sign in to an existing Filosage account with a one-time code emailed to you, on the next secure screen"
-    : primaryProvider === "google"
-      ? externalExistingAlternate
-        ? "Continue with Google to create an account, or use a one-time code emailed to you for an existing account"
-        : "Continue with Google on the next secure screen"
-      : "Secure sign-in is temporarily unavailable";
+  const primaryAvailable = primaryProvider === "google" && authentication.googleAvailable;
+  const createsAccount = primaryAvailable;
+  const identityCopy = primaryAvailable
+    ? "Continue with Google on the next secure screen"
+    : "Secure sign-in is temporarily unavailable";
 
   useEffect(() => {
     const previousFocus = returnFocus?.isConnected
@@ -95,20 +75,8 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
   };
 
   const handleSecureContinue = () => beginRedirect(
-    createsAccount
-      ? () => signInWithRedirect(returnPath)
-      : () => primaryProvider ? signInWithProvider(primaryProvider, returnPath) : Promise.reject(new Error("Sign-in unavailable.")),
+    () => signInWithRedirect(returnPath),
     "Secure sign-in could not be started. Your learning data has not changed. Please try again.",
-  );
-
-  const handleExistingGoogle = () => beginRedirect(
-    () => beginExistingGoogleSignIn(false, returnPath),
-    "The existing Google sign-in could not be opened. Your learning data has not changed.",
-  );
-
-  const handleExistingEmail = () => beginRedirect(
-    () => signInWithProvider("filosage", returnPath),
-    "Email-code sign-in could not be opened. Your learning data has not changed.",
   );
 
   return <div className="modal-layer" role="presentation" onMouseDown={onClose}>
@@ -123,9 +91,7 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
           : "Sign-in is unavailable right now. You can still browse published topics and inspect every course outline."}</p>
       <div className="auth-identity">
         <span className="auth-identity-marks" aria-hidden="true">
-          {identityCopy.includes("Google") ? <GoogleMark /> : null}
-          {/email/i.test(identityCopy) ? <Mail size={16} /> : null}
-          {identityCopy.includes("Google") || /email/i.test(identityCopy) ? null : <Cloud size={16} />}
+          {primaryAvailable ? <GoogleMark /> : null}
         </span>
         <span className="auth-identity-copy">{identityCopy}</span>
       </div>
@@ -135,29 +101,16 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
         <span>I confirm I am at least 13 and, if I am not yet the age of legal majority where I live, that my parent or guardian has reviewed and agreed to the <Link href="/terms" target="_blank">Terms of Service</Link>. I acknowledge the <Link href="/privacy" target="_blank">Privacy Notice</Link>.</span>
       </label>}
       <button
-        className={`button ${primaryProvider === "google" ? "button-google" : "button-primary"} auth-submit`}
+        className="button button-google auth-submit"
         onClick={() => void handleSecureContinue()}
         disabled={redirecting || !primaryAvailable || (createsAccount && !agreed)}
       >
-        {primaryProvider === "google" ? <GoogleMark /> : null}
-        {redirecting ? "Opening secure sign-in…" : primaryProvider === "filosage" ? createsAccount ? "Continue securely" : "Sign in with email code" : primaryProvider === "google" ? "Continue with Google" : "Sign-in unavailable"}
+        {primaryAvailable ? <GoogleMark /> : null}
+        {redirecting ? "Opening secure sign-in…" : primaryAvailable ? "Continue with Google" : "Sign-in unavailable"}
       </button>
-      <p className="auth-redirect-help">{primaryProvider === "filosage"
-        ? "Microsoft securely manages sign-in. Filosage never sees your password or one-time code."
-        : primaryProvider === "google"
-          ? "Google handles sign-in securely. Filosage never sees your password."
-          : "Your learning data has not changed. You can keep browsing published course outlines."}</p>
-      {googleAlternate && (
-        <button className="button button-google auth-redirect" onClick={() => void handleExistingGoogle()} disabled={redirecting}>
-          <GoogleMark />
-          Use my existing Google sign-in
-        </button>
-      )}
-      {externalExistingAlternate && (
-        <button className="button button-secondary auth-redirect" onClick={() => void handleExistingEmail()} disabled={redirecting}>
-          Use email code for an existing account
-        </button>
-      )}
+      <p className="auth-redirect-help">{primaryAvailable
+        ? "Google handles sign-in securely. Filosage never sees your password."
+        : "Your learning data has not changed. You can keep browsing published course outlines."}</p>
       <button className="button button-quiet" onClick={onClose}>Continue browsing course outlines</button>
     </section>
   </div>;

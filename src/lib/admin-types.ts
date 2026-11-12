@@ -2,7 +2,7 @@ import type { AccountStatus, LearnerPlan } from "@/lib/course-types";
 import type { AiFeature } from "@/lib/ai-usage";
 import type { AcquisitionChannel, ProductEventName } from "@/lib/product-events";
 import type { MembershipAnalytics } from "@/lib/membership-analytics";
-import type { AzureInfrastructure } from "@/lib/azure-infrastructure";
+import type { CloudflareInfrastructure } from "@/lib/cloudflare-infrastructure";
 
 export interface AdminFeatureUsage {
   feature: AiFeature;
@@ -105,7 +105,7 @@ export interface AdminOverview {
       percentUsed: number;
     }>;
   };
-  infrastructure: AzureInfrastructure;
+  infrastructure: CloudflareInfrastructure;
   monetization: {
     waitlistCount: number;
     plans: Array<{
@@ -189,10 +189,7 @@ export interface AdminOverview {
     paymentProviderConfigured: boolean;
     activityReceiptsConfigured: boolean;
     operationsAlertsConfigured: boolean;
-    managedBackupsConfigured: boolean;
     operationsAlerts: OperationalReadinessControl;
-    managedBackups: OperationalReadinessControl;
-    restoreDrill: OperationalReadinessControl;
     productionHealthMonitorConfigured: boolean;
     supportChannelConfigured: boolean;
     lifecycleMessagingConfigured: boolean;

@@ -22,7 +22,7 @@ import { createGeneratedFlashcardDraft } from "../../src/lib/flashcards-server.t
 import { publicationContentFingerprint } from "../../src/lib/publication-content.ts";
 import { beginAccountDeletion, resumeAccountDeletion } from "../../src/lib/account-deletion.ts";
 
-if (process.env.OPENAI_API_KEY || process.env.DATABASE_URL || process.env.NODE_ENV === "production") {
+if (process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true" || process.env.NODE_ENV === "production") {
   throw new Error("Generic product recovery fixtures require isolated local mode without provider credentials.");
 }
 

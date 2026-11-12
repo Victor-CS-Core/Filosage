@@ -12,10 +12,8 @@ import {
 const signedOutManagedSession = {
   recentAuthentication: false,
   authentication: {
-    primaryProvider: "filosage",
-    externalIdAvailable: true,
-    externalIdNewAccountsAvailable: true,
-    legacyGoogleAvailable: true,
+    primaryProvider: "google",
+    googleAvailable: true,
   },
   user: null,
 } as const;
@@ -40,9 +38,8 @@ test("@cross-browser preserves a chosen appearance across the managed sign-in re
   await page.emulateMedia({ colorScheme: "light" });
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
     ...signedOutManagedSession,
-    authentication: { ...signedOutManagedSession.authentication, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
   } }));
-  await page.route("**/.auth/login/filosage?**", (route) => route.fulfill({
+  await page.route("**/api/auth/google?**", (route) => route.fulfill({
     status: 200,
     contentType: "text/html",
     body: '<!doctype html><title>Managed sign-in boundary</title><a href="/standard">Return to Filosage</a>',
@@ -58,8 +55,8 @@ test("@cross-browser preserves a chosen appearance across the managed sign-in re
   const menu = page.getByRole("button", { name: "Open navigation menu" });
   if (await menu.isVisible()) await menu.click();
   await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Sign in with email code" }).click();
-  await page.waitForURL(/\/\.auth\/login\/filosage\?post_login_redirect_uri=%2Fstandard$/);
+  await page.getByRole("dialog").getByRole("button", { name: "Continue with Google" }).click();
+  await page.waitForURL(/\/api\/auth\/google\?post_login_redirect_uri=%2Fstandard$/);
   await page.getByRole("link", { name: "Return to Filosage" }).click();
   await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -219,7 +216,7 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
   await expect(dialog).toBeVisible();
   const legalConfirmation = dialog.getByRole("checkbox");
   await legalConfirmation.check();
-  await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
   await expectWcagClean(page);
   await expectFocusContained(page, dialog, sequentialFocus);
 
@@ -240,7 +237,6 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
   expect(darkSurface.backgroundColor).not.toBe(lightSurface.backgroundColor);
   expect(darkSurface.color).not.toBe(lightSurface.color);
   await expect(dialog.locator(".auth-identity .auth-google-icon")).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" }).locator(".auth-google-icon")).toBeVisible();
   await expectWcagClean(page);
 
   await expectMobileHardening(page, dialog, dialog.locator(".legal-check span"));
@@ -256,17 +252,15 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", {
     json: {
       recentAuthentication: true,
       authentication: {
-        primaryProvider: "filosage",
-        externalIdAvailable: true,
-        externalIdNewAccountsAvailable: true,
-        legacyGoogleAvailable: true,
+        primaryProvider: "google",
+        googleAvailable: true,
       },
       user: {
         uid: "filosage-canonical-recovery",
         displayName: "Recovery Learner",
         email: "recovery@example.com",
         photoURL: null,
-        authenticationProvider: "filosage",
+        authenticationProvider: "google",
       },
     },
   }));
@@ -280,23 +274,20 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", {
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
   await page.goto("/");
 
-  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  const dialog = page.getByRole("dialog", { name: "Account review required" });
   await expect(dialog).toBeVisible();
   await expectWcagClean(page);
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
 
   await pressNativeSequentialFocus(page, sequentialFocus, "forward");
-  await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" })).toBeFocused();
-  await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" }).locator(".auth-google-icon")).toBeVisible();
-  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
-  await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: "Sign out" })).toBeFocused();
   await expectFocusContained(page, dialog, sequentialFocus, 8);
 
   await expectMobileHardening(page, dialog, dialog.locator("#identity-link-description"));
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Sign out" })).toBeVisible();
 });
 
 test("profile name editing remains keyboard reachable and reflows at 200 percent", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
@@ -306,17 +297,15 @@ test("profile name editing remains keyboard reachable and reflows at 200 percent
     json: {
       recentAuthentication: true,
       authentication: {
-        primaryProvider: "filosage",
-        externalIdAvailable: true,
-        externalIdNewAccountsAvailable: true,
-        legacyGoogleAvailable: true,
+        primaryProvider: "google",
+        googleAvailable: true,
       },
       user: {
         uid: "profile-accessibility-learner",
         displayName: "Accessible Learner",
         email: "accessible@example.com",
         photoURL: null,
-        authenticationProvider: "filosage",
+        authenticationProvider: "google",
       },
     },
   }));
@@ -373,7 +362,7 @@ for (const initialSetup of [true, false]) {
     await page.emulateMedia({ colorScheme: initialSetup ? "light" : "dark", reducedMotion: "reduce" });
     await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
       ...signedOutManagedSession, recentAuthentication: true,
-      user: { uid: "legal-learner", displayName: "Legal Learner", email: "legal@example.com", photoURL: null, authenticationProvider: "filosage" },
+      user: { uid: "legal-learner", displayName: "Legal Learner", email: "legal@example.com", photoURL: null, authenticationProvider: "google" },
     } }));
     await page.route("**/api/account", (route) => route.fulfill({ json: {
       ...exactLearnerAccount(), applicationAccountExists: !initialSetup, legalAcceptanceRequired: true,
@@ -445,7 +434,7 @@ for (const gate of ["legal", "identity"] as const) {
     const prematureReads: string[] = [];
     await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
       ...signedOutManagedSession, recentAuthentication: true,
-      user: { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" },
+      user: { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "google" },
     } }));
     await page.route("**/api/account", async (route) => {
       if (uid === "ready-account-A") return route.fulfill({ json: exactLearnerAccount({ displayName: uid }) });
@@ -474,7 +463,7 @@ for (const gate of ["legal", "identity"] as const) {
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     expect(prematureReads).toEqual([]);
     releaseAccount();
-    const dialog = page.getByRole("dialog", { name: gate === "legal" ? "Review before continuing" : "Confirm your existing sign-in" });
+    const dialog = page.getByRole("dialog", { name: gate === "legal" ? "Review before continuing" : "Account review required" });
     await expect(dialog).toBeVisible();
     expect(prematureReads).toEqual([]);
   });
@@ -486,7 +475,7 @@ test("owner navigation stays readable in both themes while a failed overview can
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
     ...signedOutManagedSession,
     recentAuthentication: true,
-    user: { uid: "navigation-audit-owner", displayName: "Navigation Owner", email: "navigation@example.com", photoURL: null, authenticationProvider: "filosage" },
+    user: { uid: "navigation-audit-owner", displayName: "Navigation Owner", email: "navigation@example.com", photoURL: null, authenticationProvider: "google" },
   } }));
   await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ isOwner: true }) }));
   await page.route("**/api/learner-state", (route) => route.fulfill({ json: EMPTY_LEARNER_STATE }));

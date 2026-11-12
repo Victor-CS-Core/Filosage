@@ -1,9 +1,7 @@
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 
 export const PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY = "filosage:managed-redirect-acceptance:v1";
-export const PENDING_IDENTITY_RECOVERY_KEY = "filosage:identity-recovery:v1";
 const PENDING_ACCEPTANCE_MAX_AGE_MS = 15 * 60 * 1000;
-const PENDING_RECOVERY_MAX_AGE_MS = 15 * 60 * 1000;
 const PENDING_HINT_MAX_BYTES = 1_024;
 
 export interface PendingManagedRedirectAcceptance {
@@ -76,19 +74,3 @@ export function parsePendingManagedRedirectAcceptance(
   };
 }
 
-export function pendingIdentityRecovery(now = Date.now()) {
-  return { createdAt: now, returnPath: "/profile?identity-linked=1" } as const;
-}
-
-export function parsePendingIdentityRecovery(value: string | null, now = Date.now()) {
-  const candidate = boundedCandidate(value);
-  if (!exactObject(candidate, ["createdAt", "returnPath"])
-    || !currentTimestamp(candidate.createdAt, now, PENDING_RECOVERY_MAX_AGE_MS)
-    || candidate.returnPath !== "/profile?identity-linked=1") {
-    return null;
-  }
-  return {
-    createdAt: candidate.createdAt as number,
-    returnPath: "/profile?identity-linked=1",
-  } as const;
-}

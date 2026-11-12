@@ -11,8 +11,7 @@ import {
 /**
  * Cloudflare D1 document store backend.
  *
- * Implements the same document-store JSON API as postgres-document-store.ts,
- * but against D1 (SQLite) instead of PostgreSQL. Key translations:
+ * Implements the document-store JSON API against D1 (SQLite). Key details:
  *
  * - Placeholders: `?` instead of `$1`, `$2`, ...
  * - JSON access: `json_extract(data, '$.a.b.c')` instead of `data #> / #>>`
@@ -95,7 +94,7 @@ async function d1(): Promise<D1Database> {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers (mirroring postgres-document-store.ts)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function transactions() {
@@ -461,7 +460,7 @@ async function applyTransactionalWrites(
     // Assertion failures surface as constraint errors. Any constraint
     // failure in this batch means the validated state no longer holds (or
     // a create raced), so report a retryable transaction conflict — the
-    // same 409 contract the PostgreSQL and local backends use, which
+    // same 409 contract the local backend uses, which
     // runStoredDocumentTransaction retries with backoff. The batch rolled
     // back atomically: no write from this transaction was committed.
     if (error instanceof Error && /constraint/i.test(error.message)) {
@@ -542,7 +541,7 @@ async function finishTransaction(id: string, writes: Array<Record<string, unknow
 }
 
 // ---------------------------------------------------------------------------
-// Public JSON API (mirrors postgresDocumentStoreJson)
+// Public JSON API
 // ---------------------------------------------------------------------------
 
 export async function d1DocumentStoreJson<T>(

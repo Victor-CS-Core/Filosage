@@ -9,8 +9,7 @@ export type AccountEntryMode = "create" | "sign-in" | "unavailable";
 export function accountEntryMode(
   authentication: ManagedAuthenticationState["authentication"],
 ): AccountEntryMode {
-  if (authentication.externalIdNewAccountsAvailable || authentication.legacyGoogleAvailable) return "create";
-  if (authentication.externalIdAvailable) return "sign-in";
+  if (authentication.googleAvailable) return "create";
   return "unavailable";
 }
 

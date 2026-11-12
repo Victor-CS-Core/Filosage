@@ -33,10 +33,10 @@ async function fixture(context: BrowserContext) {
   let delayMastery = false;
   let releaseMastery: (() => void) | undefined;
   const writes: Array<{ uid: string | null; path: string; body: string }> = [];
-  const authentication = { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true };
+  const authentication = { primaryProvider: "google", googleAvailable: true };
   await context.route("**/api/auth/session", (route) => route.fulfill({ json: {
     recentAuthentication: true, authentication,
-    user: uid ? { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" } : null,
+    user: uid ? { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "google" } : null,
   } }));
   await context.route("**/.auth/logout*", async (route) => {
     uid = null;
@@ -141,8 +141,8 @@ test("home hides A's courses during a direct focus refresh to B before B's data 
   });
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
     recentAuthentication: true,
-    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
-    user: { uid, accountGeneration: `generation-${uid}`, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" },
+    authentication: { primaryProvider: "google", googleAvailable: true },
+    user: { uid, accountGeneration: `generation-${uid}`, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "google" },
   } }));
   await page.route("**/api/account", (route) => route.fulfill({
     json: exactLearnerAccount({ displayName: uid === "account-A" ? "Alice" : "Blair" }),
@@ -154,7 +154,7 @@ test("home hides A's courses during a direct focus refresh to B before B's data 
     const requestUid = uid;
     if (requestUid === "account-B") {
       heldCourses += 1;
-      expect(route.request().headers().authorization).toBe("Bearer azure-easy-auth-session.v2:account-B:generation-account-B");
+      expect(route.request().headers().authorization).toBe("Bearer filosage-account-session.v2:account-B:generation-account-B");
       await dataHeld;
     }
     return route.fulfill({ json: { courses: [homeCourse(requestUid)] } });
@@ -163,7 +163,7 @@ test("home hides A's courses during a direct focus refresh to B before B's data 
     const requestUid = uid;
     if (requestUid === "account-B") {
       heldProgress += 1;
-      expect(route.request().headers().authorization).toBe("Bearer azure-easy-auth-session.v2:account-B:generation-account-B");
+      expect(route.request().headers().authorization).toBe("Bearer filosage-account-session.v2:account-B:generation-account-B");
       await dataHeld;
     }
     return route.fulfill({ json: { progress: [homeProgress(requestUid)] } });

@@ -70,7 +70,7 @@ async function reusableBanner(assetId: string, fallbackModel: string): Promise<C
   if (!/^[a-f0-9]{32}$/.test(assetId)) return null;
   const asset = await getStoredDocument(`courseBannerAssets/${assetId}`);
   if (!asset || asset.contentType !== "image/webp" || (asset.status && asset.status !== "uploaded")) return null;
-  const available = asset.storage === "azure-blob" || typeof asset.data === "string";
+  const available = asset.storage === "r2" || typeof asset.data === "string";
   if (!available) return null;
   return {
     banner: {
@@ -208,7 +208,7 @@ export async function createOrReuseCourseBanner(
       costMicros: generationCostMicros(model),
     };
   } catch (error) {
-    // An unknown Azure outcome retains the uploading marker for manual recovery.
+    // An unknown object-store outcome retains the uploading marker for manual recovery.
     if (ownsGeneration) {
       await runStoredDocumentTransaction([keyPath], (documents) => ({ writes: documents[keyPath]?.claimId === claimId ? [{ path: keyPath, data: {
         status: "failed",

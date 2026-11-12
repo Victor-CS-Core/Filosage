@@ -34,7 +34,7 @@ import {
   type PaidLearnerPlan,
 } from "@/lib/membership-plans";
 import { calculateMembershipAnalytics, effectiveMembershipPlan } from "@/lib/membership-analytics";
-import { azureInfrastructure } from "@/lib/azure-infrastructure";
+import { cloudflareInfrastructure } from "@/lib/cloudflare-infrastructure";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 import { buildMarketingFunnels, orderedIntentCompletion, retentionAtDay } from "@/lib/product-metrics";
 
@@ -181,9 +181,7 @@ async function handleGET(request: Request) {
       totalContentReportCount,
       resolvedContentReportCount,
       dismissedContentReportCount,
-      backupEvidence,
       alertTestEvidence,
-      restoreEvidence,
       infrastructure,
     ] = await Promise.all([
       listAllStoredDocuments("users", 10_000),
@@ -211,10 +209,8 @@ async function handleGET(request: Request) {
       countCollectionDocuments("contentReports"),
       countCollectionDocuments("contentReports", [{ field: "status", value: "resolved" }]),
       countCollectionDocuments("contentReports", [{ field: "status", value: "dismissed" }]),
-      getStoredDocument("operationalEvidence/postgres-backup-latest"),
       getStoredDocument("operationalEvidence/alert-test-latest"),
-      getStoredDocument("operationalEvidence/postgres-restore-latest"),
-      azureInfrastructure(),
+      cloudflareInfrastructure(),
     ]);
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
@@ -223,10 +219,6 @@ async function handleGET(request: Request) {
     const alertsConfigured = Boolean(
       serverEnvironment.OPERATIONS_ALERT_WEBHOOK_URL?.trim()
       && serverEnvironment.OPERATIONS_ALERT_WEBHOOK_SECRET?.trim(),
-    );
-    const backupsConfigured = Boolean(
-      serverEnvironment.AZURE_POSTGRES_SERVER_NAME?.trim()
-      && serverEnvironment.AZURE_RESOURCE_GROUP?.trim(),
     );
     const operationsAlerts = operationalControl({
       configured: alertsConfigured,
@@ -238,23 +230,6 @@ async function handleGET(request: Request) {
       unverifiedDetail: "Independently verify receiver durability, signature rejection, escalation and recovery; sender HTTP acceptance alone is insufficient.",
       healthyDetail: "Independent receiver verification is required.",
     });
-    const managedBackups = operationalControl({
-      configured: backupsConfigured,
-      evidence: backupEvidence,
-      healthyForHours: 36,
-      missingDetail: "The Azure PostgreSQL server and resource group must be configured.",
-      unverifiedDetail: "Azure backups are configured, but no retained backup evidence is recorded.",
-      healthyDetail: "Recent Azure PostgreSQL backup evidence is recorded.",
-    });
-    const restoreDrill = operationalControl({
-      configured: backupsConfigured,
-      evidence: restoreEvidence,
-      healthyForHours: 100 * 24,
-      missingDetail: "Restore testing requires the Azure PostgreSQL backup configuration.",
-      unverifiedDetail: "No successful point-in-time restore into a recovery server is recorded.",
-      healthyDetail: "A successful restore operation is recorded within the last 100 days.",
-    });
-
     const userRows = rawUsers.map((record) => {
       const uid = stringValue(record.uid) ?? record.id;
       const isOwner = uid === owner.uid;
@@ -677,10 +652,7 @@ async function handleGET(request: Request) {
         paymentProviderConfigured: billing.providerReady,
         activityReceiptsConfigured: Boolean(serverEnvironment.ACTIVITY_RECEIPT_SECRET?.trim()),
         operationsAlertsConfigured: alertsConfigured,
-        managedBackupsConfigured: backupsConfigured,
         operationsAlerts,
-        managedBackups,
-        restoreDrill,
         productionHealthMonitorConfigured: Boolean(serverEnvironment.PRODUCTION_HEALTH_URL?.trim()),
         supportChannelConfigured: Boolean(SUPPORT_CONTACT.trim()),
         lifecycleMessagingConfigured: false,

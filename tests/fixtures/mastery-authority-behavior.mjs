@@ -11,7 +11,7 @@ import { join, relative } from 'node:path';
 // ai-assessed (not learner-reported).
 const directory = await mkdtemp(join(tmpdir(), 'filosage-mastery-authority-'));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
-process.env.NODE_ENV = 'test'; process.env.DATABASE_URL = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
+process.env.NODE_ENV = 'test'; process.env.CLOUDFLARE_D1_ENABLED = ''; process.env.OPENAI_API_KEY = ''; process.env.STRIPE_SECRET_KEY = '';
 const documents = await import('../../src/lib/document-store.ts');
 const lifecycle = await import('../../src/lib/account-lifecycle.ts');
 const { GET, POST } = await import('../../src/app/api/mastery/route.ts');

@@ -137,7 +137,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Privacy controls",
-          body: "Signed-in users can review consent, export account-linked data, and request deletion from the Privacy Center. Recent authentication protects destructive requests. A durable deletion job immediately closes the account generation to new writes and resumes inventory, billing containment, owned documents and exclusive assets. Unknown cancellation or upload results remain pending. Another learner's evidence and shares remain theirs; public sharing can become unavailable when the source course is removed. Active-data removal is not complete erasure: identity mappings, billing consent, safety and support records remain under explicit review. No exact retention duration or legal hold is approved by this implementation. Retain the job reference and verify external identity, object storage and retention outcomes before closing that review. The owner account cannot be automatically deleted because it controls published courses and requires a documented transfer or shutdown path.",
+          body: "Signed-in users can review consent, export account-linked data, and request deletion from the Privacy Center. Recent authentication protects destructive requests. A durable deletion job immediately closes the account generation to new writes and resumes inventory, billing containment, owned documents and exclusive assets. Unknown cancellation or upload results remain pending. Another learner's evidence and shares remain theirs; public sharing can become unavailable when the source course is removed. Active-data removal is not complete erasure: identity mappings, billing consent, safety and support records remain under explicit review. No exact retention duration or legal hold is approved by this implementation. Retain the job reference and verify the account identity registry, object storage, and retention outcomes before closing that review. The owner account cannot be automatically deleted because it controls published courses and requires a documented transfer or shutdown path.",
           links: [{ label: "Privacy Center", href: "/privacy-center" }],
         },
         {
@@ -196,24 +196,24 @@ export const ownerDocumentation: OwnerDocumentation = {
     {
       id: "release-and-recovery",
       title: "Release, health, and recovery",
-      summary: "Distinguish a validated build, a Git publication, and a live Azure deployment.",
+      summary: "Distinguish a validated build, a Git publication, and a live Cloudflare deployment.",
       topics: [
         {
           title: "Release acceptance",
-          body: "One Azure Container App runs the Next.js frontend and same-origin backend routes in one immutable image. Blue and green are revisions of that app; there is no separate QA website. A source build does not prove production health. Bind the exact commit, image digest, capability manifest, canonical origin and auth mode to inactive-revision evidence. A zero-traffic revision URL is not private and uses shared durable services. Hosted mutations require approved test identities and data; a source commit does not authorize traffic changes. An alert webhook HTTP success proves transport only, not independent monitored acknowledgment, escalation or recovery. Existing-customer webhook and billing monitoring remain required even with checkout closed.",
+          body: "One Cloudflare Worker runs the Next.js frontend and same-origin backend routes. A source build does not prove production health. Bind the exact commit, capability manifest, canonical origin, authentication mode, Worker version and deployment ID to release evidence. Hosted mutations require approved test identities and data; a source commit does not authorize deployment. An alert webhook HTTP success proves transport only, not independent monitored acknowledgment, escalation or recovery. Existing-customer webhook and billing monitoring remain required even with checkout closed.",
           steps: [
             "Run lint, TypeScript, focused tests, and the full production build.",
-            "Build the selected SHA once and verify the inactive revision digest at zero public traffic while the current revision remains at 100%.",
-            "Confirm the hosted version, datastore and Blob readiness, actual traffic bindings and billing lock; collect evidence against that exact revision.",
-            "Complete changed learner and owner flows before a separately approved 100% traffic swap. Recheck evidence and digest without rebuilding, then verify the canonical URL.",
+            "Build the selected SHA with OpenNext and verify the Worker bundle before deployment.",
+            "Confirm the D1 and R2 bindings, hosted version, canonical origin, authentication mode and billing lock; collect evidence against that exact Worker version.",
+            "After separately approved deployment, verify the canonical URL, health endpoints and changed learner and owner flows.",
           ],
         },
         {
           title: "Incident response",
-          body: "If a release is unhealthy, stop new consequential work, preserve evidence, activate the relevant kill switch, and restore the last known-good version. Both revisions share services. Rollback requires compatible write protocols: retire old binaries and already-loaded legacy clients before accepting generation fences as hosted-proven. An old revision that can bypass account, publication or usage checks is not a safe rollback target. Preserve backups and evidence under the approved recovery procedure; a traffic swap cannot undo shared datastore writes.",
+          body: "If a release is unhealthy, stop new consequential work, preserve evidence, activate the relevant kill switch, and restore the last known-good Worker version. Rollback requires compatible write protocols: retire old binaries and already-loaded legacy clients before accepting generation fences as hosted-proven. An old version that can bypass account, publication or usage checks is not a safe rollback target. Preserve backups and evidence under the approved recovery procedure; rollback cannot undo shared datastore writes.",
         },
       ],
-      sources: ["docs/PRODUCTION_OPERATIONS.md", "docs/AZURE_MIGRATION_RUNBOOK.md", "docs/agent-command-center/incident-response.md", "src/app/api/health/route.ts", "scripts/check-production-health.mjs"],
+      sources: ["docs/PRODUCTION_OPERATIONS.md", "docs/agent-command-center/incident-response.md", "src/app/api/health/route.ts", "scripts/check-production-health.mjs"],
     },
   ],
 };

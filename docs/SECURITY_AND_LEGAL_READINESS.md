@@ -1,13 +1,13 @@
 # Filosage security and legal readiness
 
-Updated: 2026-09-06 (source reconciliation; historical observations retain their dates)
+Updated: 2026-11-12 (Cloudflare-only source reconciliation; historical observations retain their dates)
 
 This document is an engineering and launch-readiness record, not legal advice.
 
 ## Controls implemented
 
-- Azure Container Apps Easy Auth verifies Google sign-in, and can verify Microsoft Entra External ID customer-account sign-in when that provider is enabled, before requests reach Next.js. Protected routes authorize the Azure-injected principal independently.
-- Browser database access is denied; privileged PostgreSQL access remains server-side.
+- Direct Google OAuth verifies sign-in and Filosage issues a signed HTTP-only session cookie. Protected routes resolve and authorize the verified server-side session independently.
+- Browser database access is denied; D1 and R2 bindings remain server-side.
 - Public course and lesson responses use explicit data-transfer objects. Internal user IDs, topic keys, service timestamps, and author profile URLs are not returned.
 - State-changing JSON requests require an allowed origin, `application/json`, and an endpoint-specific body limit.
 - Progress totals are validated so correct answers and attempts cannot exceed their logical bounds. Non-owner Plus and Pro authors must also present short-lived HMAC-signed activity receipts bound to their user, course, lesson, and quiz before a lesson can unlock the next generation step.
@@ -16,14 +16,14 @@ This document is an engineering and launch-readiness record, not legal advice.
 - OpenAI Responses requests disable application-state storage. Direct AI interactions and AI-assisted course or lesson content are visibly identified and include machine-readable disclosure attributes.
 - Mermaid output is parsed and sanitized before insertion into the document.
 - Response headers include nonce-based CSP, HSTS on pages, APIs, and hosted assets, clickjacking protection, MIME sniffing protection, a restrictive permissions policy, and cross-origin isolation controls compatible with Google sign-in.
-- `/api/health` performs a live Azure PostgreSQL probe. Critical datastore and verified billing-event failures can be sent to an operator webhook with sanitized metadata and an optional HMAC signature.
-- Azure Database for PostgreSQL Flexible Server retains seven-day automated backups with point-in-time restore into a separate recovery server. Blob Storage keeps seven-day soft-delete plus object versioning for course banners. Restore is rehearsed against a non-production recovery server; configuration alone is not recovery proof.
+- `/api/health` performs a live Cloudflare D1 probe. Critical datastore and verified billing-event failures can be sent to an operator webhook with sanitized metadata and an HMAC signature.
+- D1 and R2 backup, retention, and restore readiness remains an explicit launch gate. Configuration alone is not recovery proof; any rehearsal must use an isolated non-production destination.
 - The production and full installed dependency graphs reported zero known npm audit vulnerabilities on 2026-08-21; that historical result is not a current candidate audit.
 - Signup and future terms updates use an affirmative, versioned acceptance record for the registrant's stated age eligibility and, where applicable, stated guardian review. This is not independent age assurance or verified guardian consent. Guests can inspect published topics and course outlines; lesson bodies require an accepted free account.
-- Signed-in non-owner users can export their account data. Automated deletion requires a recent Google `auth_time` in the Azure-injected claims and otherwise fails closed without deleting data; live claim verification remains a launch gate. The client prompt and token issue time are not accepted as substitutes for recent authentication. Filosage never deletes the user's external Google account. Owner deletion requires a manual course-control transfer or shutdown process.
+- Signed-in non-owner users can export their account data. Automated deletion requires recent Google authentication in the verified server session and otherwise fails closed without deleting data; live verification remains a launch gate. The client prompt is not accepted as a substitute for recent authentication. Filosage never deletes the user's external Google account. Owner deletion requires a manual course-control transfer or shutdown process.
 - A published Copyright Policy defines notice, counter-notice, review, removal, and an adopted repeat-infringer termination procedure. Content reports and owner enforcement actions preserve the operational record used to apply it. The app does not claim DMCA safe-harbor registration that has not been completed.
 - Optional first-party product analytics are off until the visitor makes a choice. Refusal and later withdrawal remove Filosage's optional browser identifiers; the choice remains available in the Privacy Center.
-- Browser telemetry accepts only coarse anonymous discovery events. Signed-in learning events are rebound to the Azure-verified Google principal ID, while signup, waitlist, moderation, checkout, and subscription events are recorded only by the server route that performs the underlying action.
+- Browser telemetry accepts only coarse anonymous discovery events. Signed-in learning events are rebound to the verified Google principal ID, while signup, waitlist, moderation, checkout, and subscription events are recorded only by the server route that performs the underlying action.
 - Multiple independent serious content reports escalate to owner review and operational alerting; learner reports alone cannot automatically unpublish a course.
 
 ## Automated account export and deletion boundary
@@ -51,7 +51,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 
 ## Known residual risks
 
-- The Azure-hosted Next.js runtime uses request-specific CSP nonces. Styles still permit inline declarations because the current UI uses framework and component-generated inline styles; tightening this remains a separately tested hardening task.
+- The Cloudflare-hosted Next.js runtime uses request-specific CSP nonces. Styles still permit inline declarations because the current UI uses framework and component-generated inline styles; tightening this remains a separately tested hardening task.
 - AI moderation reduces abuse but cannot guarantee that every unsafe or inaccurate output is detected. Pro authors require server-verified sequential lesson completion, attestation, and snapshot-bound publication evidence. The source baseline has a generated-provenance publication path that does not rerun the full review; a unified publication-proof gate remains required for release readiness. In every path, the owner retains platform-wide quarantine, unpublish, and deletion control.
 - Provider security logs, abuse-monitoring records, backups, consent records, and legally required records may outlive active account deletion under the disclosed retention rules.
 - The owner account cannot be deleted automatically because doing so could orphan control of published courses. It requires a verified manual transfer or service-shutdown process.
@@ -64,7 +64,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 
 ## Operational checks per release
 
-- Run lint, TypeScript, the production build, proportionate end-to-end flows, npm audit, and a tracked-file secret scan. Deploy only an immutable full-SHA image through the Azure blue/green workflow.
+- Run lint, TypeScript, the production build, the OpenNext Worker build and smoke test, proportionate end-to-end flows, npm audit, and a tracked-file secret scan. Deploy only the reviewed full SHA through the Cloudflare release procedure.
 - Test Google sign-in on desktop Chrome and mobile Safari, including return-to-app persistence.
 - Verify public endpoints do not return `authorId`, email, service credentials, billing identifiers, or moderation details.
 - Test cross-origin, wrong-content-type, oversized-body, malformed JSON, forged-progress, and quota-exhaustion responses.

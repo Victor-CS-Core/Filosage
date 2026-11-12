@@ -1,7 +1,7 @@
 # FiloSage Cloudflare operations receiver
 
 The dedicated `filosage-operations` Worker and D1 database replace the retired
-Azure receiver. They never read application D1/R2 or learner records. The sender
+receiver. They never read application D1/R2 or learner records. The sender
 contract stays unchanged: HMAC-SHA256 of the exact JSON bytes, v1 signature,
 matching alert/idempotency IDs and timestamp. Bodies are capped at 16 KiB;
 requests older than five minutes or over 30 seconds in the future are refused.

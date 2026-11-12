@@ -1397,19 +1397,19 @@ test("lesson evidence downgrade and replacement save form one owner-aware atomic
   expect(existingLesson).toEqual(originalLesson);
 });
 
-test("Azure Easy Auth terminates Google OAuth before requests reach Next.js", async () => {
-  const [nextConfigSource, proxySource, identitySource, authRuntimeSource] = await Promise.all([
+test("Cloudflare production uses the direct Google OAuth session", async () => {
+  const [nextConfigSource, proxySource, authServerSource, middlewareSource] = await Promise.all([
     readFile("next.config.ts", "utf8"),
     readFile("src/proxy.ts", "utf8"),
-    readFile("src/lib/identity-server.ts", "utf8"),
-    readFile("src/lib/auth-runtime.ts", "utf8"),
+    readFile("src/lib/auth-server.ts", "utf8"),
+    readFile("src/middleware.cloudflare.ts", "utf8"),
   ]);
   expect(nextConfigSource).toContain('source: "/:path*"');
   expect(nextConfigSource).not.toContain(`${RETIRED_SYSTEM_NAMES[2]}-auth`);
   expect(proxySource).toContain("api|assets|__|_next/static");
-  expect(identitySource).toContain("easyAuthIdentityFromHeaders");
-  expect(identitySource).toContain("authenticationRuntimeConfiguration");
-  expect(authRuntimeSource).toContain("AZURE_EASY_AUTH_ENABLED");
+  expect(authServerSource).toContain("getCloudflareVerifiedUser");
+  expect(authServerSource).not.toContain("verifiedEasyAuth");
+  expect(middlewareSource).not.toContain("/.auth/login");
 });
 
 test("same-tab sign-in preserves only fresh, version-bound legal confirmation", () => {

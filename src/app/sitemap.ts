@@ -21,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "monthly",
     priority: 0.45,
   }));
-  const canReadProductionCatalog = Boolean(serverEnvironment.DATABASE_URL?.trim());
+  const canReadProductionCatalog = serverEnvironment.CLOUDFLARE_D1_ENABLED === "true";
   if (serverEnvironment.NODE_ENV === "production" && !canReadProductionCatalog) return [...staticRoutes, ...supportRoutes];
 
   try {

@@ -17,9 +17,9 @@ if (!/^[a-f0-9]{40}$/i.test(expectedVersion)) {
   console.error("Expected production version must be the full 40-character Git commit SHA.");
   process.exit(1);
 }
-const allowedAuthenticationModes = new Set(["direct-google", "external-id", "migration-dual"]);
+const allowedAuthenticationModes = new Set(["direct-google"]);
 if (!allowedAuthenticationModes.has(expectedAuthenticationMode)) {
-  console.error("EXPECTED_AUTH_MODE must be direct-google, external-id, or migration-dual.");
+  console.error("EXPECTED_AUTH_MODE must be direct-google.");
   process.exit(1);
 }
 let expectedOrigin = "";

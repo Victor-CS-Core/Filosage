@@ -11,7 +11,7 @@ import { generationFingerprint, generationOperationId } from "../../src/lib/gene
 import { openAiExecutionProfile } from "../../src/lib/openai-generation.ts";
 import { TERMS_VERSION, PRIVACY_VERSION } from "../../src/lib/legal.ts";
 
-if (process.env.OPENAI_API_KEY || process.env.DATABASE_URL || process.env.NODE_ENV === "production") throw new Error("Budget route fixture requires isolated local mode without provider credentials.");
+if (process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true" || process.env.NODE_ENV === "production") throw new Error("Budget route fixture requires isolated local mode without provider credentials.");
 const directory = mkdtempSync(join(tmpdir(), "course-budget-route-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 process.env.OPENAI_API_KEY = "synthetic-route-budget-key";

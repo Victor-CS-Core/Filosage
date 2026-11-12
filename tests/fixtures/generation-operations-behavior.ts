@@ -864,7 +864,7 @@ test('late generic response after a replacement token reconciles individual unce
 
 test('maintenance exits nonzero when a legacy AI request requires manual reconciliation', async () => {
  await putStoredDocument('aiRequests/review-legacy-missing-paths', {uid:'review-legacy',status:'reserved',leaseUntil:'2020-01-01T00:00:00Z',reservedCostMicros:1000});
- const result=spawnSync(process.execPath,['--conditions=react-server','--import','tsx','scripts/reconcile-generation-operations.ts','--dry-run'],{encoding:'utf8',timeout:15_000,env:{...process.env,NODE_ENV:'test',DATABASE_URL:''}});
+ const result=spawnSync(process.execPath,['--conditions=react-server','--import','tsx','scripts/reconcile-generation-operations.ts','--dry-run'],{encoding:'utf8',timeout:15_000,env:{...process.env,NODE_ENV:'test',CLOUDFLARE_D1_ENABLED:''}});
  console.log(JSON.stringify({case:'manual-maintenance',exit:result.status,stdout:result.stdout}));
  assert.notEqual(result.status,0,'Unresolved legacy accounting is a blocked gate');
 });

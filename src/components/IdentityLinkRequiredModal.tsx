@@ -3,11 +3,9 @@
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import GoogleMark from "@/components/GoogleMark";
 
 export default function IdentityLinkRequiredModal() {
   const {
-    useExistingGoogleSignIn: beginExistingGoogleSignIn,
     signOut,
     error: authenticationError,
     clearError,
@@ -61,17 +59,6 @@ export default function IdentityLinkRequiredModal() {
     setActionError(message);
   };
 
-  const confirm = async () => {
-    if (!beginAction()) return;
-    try {
-      await beginExistingGoogleSignIn(true);
-    } catch (error) {
-      finishFailedAction(error instanceof Error
-        ? error.message
-        : "The existing sign-in could not be opened. No account data changed.");
-    }
-  };
-
   const leave = async () => {
     if (!beginAction()) return;
     try {
@@ -94,15 +81,11 @@ export default function IdentityLinkRequiredModal() {
       aria-describedby="identity-link-description"
     >
       <span className="legal-consent-icon" aria-hidden="true"><ShieldCheck size={22} /></span>
-      <h2 id="identity-link-title">Confirm your existing sign-in</h2>
-      <p id="identity-link-description" className="auth-copy">This email is already connected to a Filosage learning account. Confirm your previous Google sign-in to connect the new method without moving your courses, progress, notes, or review dates.</p>
+      <h2 id="identity-link-title">Account review required</h2>
+      <p id="identity-link-description" className="auth-copy">This Google identity conflicts with an existing Filosage account record. No account data has changed. Sign out and contact Filosage support for review.</p>
       {visibleError && <p className="form-error" role="alert">{visibleError}</p>}
-      <button className="button button-google auth-submit" disabled={busy} onClick={() => void confirm()}>
-        <GoogleMark />
-        {busy ? "Opening secure sign-in…" : "Confirm existing Google sign-in"}
-      </button>
       <button className="button button-quiet" disabled={busy} onClick={() => void leave()}>
-        Sign out and choose another method
+        {busy ? "Signing out…" : "Sign out"}
       </button>
     </section>
   </div>;

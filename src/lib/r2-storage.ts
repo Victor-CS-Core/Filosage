@@ -6,7 +6,7 @@ import { serverEnvironment } from "@/lib/runtime-environment";
  * Cloudflare R2 object storage via the Workers binding.
  *
  * When `CLOUDFLARE_R2_ENABLED=true` (or the FILOSAGE_R2 binding is present),
- * course images are stored in R2 instead of Azure Blob Storage. The R2
+ * course images are stored in R2. The R2
  * binding is resolved through the Cloudflare context (see cloudflare-context.ts).
  */
 

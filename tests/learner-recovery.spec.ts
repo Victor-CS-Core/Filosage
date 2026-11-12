@@ -7,8 +7,8 @@ const course = { id: "recovery-course", courseId: "recovery-course", topic: "Rec
 async function signedIn(page: Page) {
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
     recentAuthentication: true,
-    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
-    user: { uid: "recovery-A", displayName: "Recovery Learner", email: "recovery@example.com", photoURL: null, authenticationProvider: "filosage" },
+    authentication: { primaryProvider: "google", googleAvailable: true },
+    user: { uid: "recovery-A", displayName: "Recovery Learner", email: "recovery@example.com", photoURL: null, authenticationProvider: "google" },
   } }));
   await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ plan: "pro" }) }));
   await page.route("**/api/learner-state", (route) => route.fulfill({ json: route.request().method() === "GET" ? EMPTY_LEARNER_STATE : { success: true } }));

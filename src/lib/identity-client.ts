@@ -9,7 +9,7 @@ export interface FilosageUser {
   displayName: string | null;
   email: string;
   photoURL: string | null;
-  provider: "google" | "filosage" | "local";
+  provider: "google" | "local";
   getIdToken: (forceRefresh?: boolean) => Promise<string>;
   reauthenticationToken?: string;
 }
@@ -17,15 +17,13 @@ export interface FilosageUser {
 export interface ManagedAuthenticationState {
   recentAuthentication: boolean;
   authentication: {
-    primaryProvider: "google" | "filosage" | null;
-    externalIdAvailable: boolean;
-    externalIdNewAccountsAvailable: boolean;
-    legacyGoogleAvailable: boolean;
+    primaryProvider: "google" | null;
+    googleAvailable: boolean;
   };
   user: FilosageUser | null;
 }
 
-interface EasyAuthSessionResponse {
+interface AuthenticationSessionResponse {
   recentAuthentication: boolean;
   authentication: ManagedAuthenticationState["authentication"];
   user: {
@@ -34,18 +32,16 @@ interface EasyAuthSessionResponse {
     displayName: string | null;
     email: string;
     photoURL: string | null;
-    authenticationProvider: "google" | "filosage" | "local";
+    authenticationProvider: "google" | "local";
   } | null;
 }
 
 const REAUTHENTICATED_QUERY = "filosage_reauthenticated";
 const MAX_SESSION_RESPONSE_BYTES = 16 * 1024;
-const SESSION_UNAVAILABLE_MESSAGE = "Azure authentication status is unavailable.";
+const SESSION_UNAVAILABLE_MESSAGE = "Authentication status is unavailable.";
 export const RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE =
   "We could not confirm a recent sign-in, so the sensitive action was not completed.";
 
-// Azure Container Apps provides managed login endpoints in the deployed
-// runtime. Development keeps the isolated local account fallback.
 export const isManagedAuthConfigured = process.env.NODE_ENV === "production";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -101,7 +97,7 @@ export async function readBoundedJsonResponse(
   }
 }
 
-function parsedSession(value: unknown): EasyAuthSessionResponse | null {
+function parsedSession(value: unknown): AuthenticationSessionResponse | null {
   if (!isRecord(value) || !hasExactKeys(value, ["recentAuthentication", "authentication", "user"])) {
     return null;
   }
@@ -109,30 +105,19 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
     return null;
   }
   const authentication = value.authentication;
-  if (!hasExactKeys(authentication, ["primaryProvider", "externalIdAvailable", "externalIdNewAccountsAvailable", "legacyGoogleAvailable"])) {
+  if (!hasExactKeys(authentication, ["primaryProvider", "googleAvailable"])) {
     return null;
   }
-  if ((authentication.primaryProvider !== null && authentication.primaryProvider !== "google" && authentication.primaryProvider !== "filosage")
-    || typeof authentication.externalIdAvailable !== "boolean"
-    || typeof authentication.externalIdNewAccountsAvailable !== "boolean"
-    || typeof authentication.legacyGoogleAvailable !== "boolean") {
+  if ((authentication.primaryProvider !== null && authentication.primaryProvider !== "google")
+    || typeof authentication.googleAvailable !== "boolean") {
     return null;
   }
-  if (authentication.externalIdNewAccountsAvailable && !authentication.externalIdAvailable) return null;
-  const expectedPrimaryProvider = authentication.externalIdNewAccountsAvailable
-    ? "filosage"
-    : authentication.legacyGoogleAvailable
-      ? "google"
-      : authentication.externalIdAvailable
-        ? "filosage"
-        : null;
+  const expectedPrimaryProvider = authentication.googleAvailable ? "google" : null;
   if (authentication.primaryProvider !== expectedPrimaryProvider) return null;
 
   const safeAuthentication: ManagedAuthenticationState["authentication"] = {
     primaryProvider: authentication.primaryProvider,
-    externalIdAvailable: authentication.externalIdAvailable,
-    externalIdNewAccountsAvailable: authentication.externalIdNewAccountsAvailable,
-    legacyGoogleAvailable: authentication.legacyGoogleAvailable,
+    googleAvailable: authentication.googleAvailable,
   };
   if (value.user === null) {
     return {
@@ -165,7 +150,7 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
     || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)
     || (value.user.displayName !== null && displayName === null)
     || (value.user.photoURL !== null && photoURL === null)
-    || (provider !== "google" && provider !== "filosage" && provider !== "local")) {
+    || (provider !== "google" && provider !== "local")) {
     return null;
   }
   return {
@@ -183,7 +168,7 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
 }
 
 function toFilosageUser(
-  session: EasyAuthSessionResponse,
+  session: AuthenticationSessionResponse,
   reauthenticationToken?: string,
 ): FilosageUser | null {
   if (!session.user) return null;
@@ -199,7 +184,7 @@ function toFilosageUser(
   };
 }
 
-export async function currentEasyAuthState(): Promise<ManagedAuthenticationState> {
+export async function currentAuthenticationState(): Promise<ManagedAuthenticationState> {
   const response = await fetch("/api/auth/session", {
     cache: "no-store",
     credentials: "same-origin",
@@ -219,12 +204,12 @@ export async function currentEasyAuthState(): Promise<ManagedAuthenticationState
   };
 }
 
-export async function currentEasyAuthUser() {
-  return (await currentEasyAuthState()).user;
+export async function currentAuthenticationUser() {
+  return (await currentAuthenticationState()).user;
 }
 
-export async function currentEasyAuthSession() {
-  const user = (await currentEasyAuthState()).user;
+export async function currentAuthenticationSession() {
+  const user = (await currentAuthenticationState()).user;
   return user ? accountSessionMarker(user.uid, user.accountGeneration) : null;
 }
 
@@ -246,19 +231,15 @@ function navigateToAuth(path: string): Promise<never> {
 }
 
 export function beginManagedSignIn(
-  provider: "google" | "filosage",
   postLoginPath = "/",
   prompt?: "login" | "select_account",
 ) {
   const destination = encodeURIComponent(sameOriginPath(postLoginPath));
   const promptParameter = prompt ? `&prompt=${encodeURIComponent(prompt)}` : "";
-  return navigateToAuth(
-    `/.auth/login/${provider}?post_login_redirect_uri=${destination}${promptParameter}`,
-  );
+  return navigateToAuth(`/api/auth/google?post_login_redirect_uri=${destination}${promptParameter}`);
 }
 
 export async function beginManagedReauthentication(
-  provider: "google" | "filosage",
   expectedCanonicalUid: string,
   postLoginPath = "/privacy-center",
 ) {
@@ -266,7 +247,7 @@ export async function beginManagedReauthentication(
   if (current.searchParams.get(REAUTHENTICATED_QUERY) === "1") {
     current.searchParams.delete(REAUTHENTICATED_QUERY);
     window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
-    const state = await currentEasyAuthState();
+    const state = await currentAuthenticationState();
     if (!state.recentAuthentication || state.user?.uid !== expectedCanonicalUid) {
       throw new Error(RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE);
     }
@@ -278,13 +259,12 @@ export async function beginManagedReauthentication(
   const destination = new URL(sameOriginPath(postLoginPath), window.location.origin);
   destination.searchParams.set(REAUTHENTICATED_QUERY, "1");
   return beginManagedSignIn(
-    provider,
     `${destination.pathname}${destination.search}`,
-    provider === "filosage" ? "login" : "select_account",
+    "select_account",
   );
 }
 
-export function signOutFromEasyAuth(postLogoutPath = "/") {
+export function signOutFromAuthentication(postLogoutPath = "/") {
   const destination = encodeURIComponent(sameOriginPath(postLogoutPath));
-  return navigateToAuth(`/.auth/logout?post_logout_redirect_uri=${destination}`);
+  return navigateToAuth(`/api/auth/google/logout?post_logout_redirect_uri=${destination}`);
 }

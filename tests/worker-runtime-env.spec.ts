@@ -5,7 +5,7 @@ import { contentReportDisposition } from "../src/lib/content-report-policy";
 
 test("routes paid Terms billing questions to the approved disclosure inbox", () => {
   const termsSource = readFileSync("src/app/terms/page.tsx", "utf8");
-  expect(termsSource).toContain("const billingSupportEmail = disclosure.ready ? disclosure.supportEmail : SUPPORT_CONTACT;");
+  expect(termsSource).toMatch(/const billingSupportEmail = disclosure\.ready\s+\? disclosure\.supportEmail\s+: SUPPORT_CONTACT;/);
   expect(termsSource).toContain("mailto:${billingSupportEmail}");
   expect(termsSource).not.toContain("Questions about plans, billing, cancellation, or refunds can be sent to <a href={`mailto:${SUPPORT_CONTACT}`}");
 });

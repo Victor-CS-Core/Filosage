@@ -5,11 +5,11 @@ import { join, relative } from 'node:path';
 import { mock } from 'node:test';
 
 // Route handlers and the real local document transaction adapter execute here.
-// Only the writer pause point is substituted. This is not PostgreSQL evidence.
+// Only the writer pause point is substituted. This is not hosted D1 evidence.
 const directory = await mkdtemp(join(tmpdir(), 'filosage-account-deletion-'));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 process.env.NODE_ENV = 'test';
-process.env.DATABASE_URL = '';
+process.env.CLOUDFLARE_D1_ENABLED = '';
 process.env.OPENAI_API_KEY = '';
 process.env.STRIPE_SECRET_KEY = '';
 const documents = await import('../../src/lib/document-store.ts');

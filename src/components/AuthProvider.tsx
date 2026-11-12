@@ -13,10 +13,10 @@ import {
 import {
   beginManagedReauthentication,
   beginManagedSignIn,
-  currentEasyAuthState,
+  currentAuthenticationState,
   isManagedAuthConfigured,
   readBoundedJsonResponse,
-  signOutFromEasyAuth,
+  signOutFromAuthentication,
   type FilosageUser,
   type ManagedAuthenticationState,
 } from "@/lib/identity-client";
@@ -25,11 +25,8 @@ import { isZeroCapabilityLinkRequiredAccount, parseLearnerAccount } from "@/lib/
 import { safeAuthenticationReturnPath } from "@/lib/auth-return-path";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import {
-  parsePendingIdentityRecovery,
   parsePendingManagedRedirectAcceptance,
-  pendingIdentityRecovery,
   pendingManagedRedirectAcceptance,
-  PENDING_IDENTITY_RECOVERY_KEY,
   PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY,
 } from "@/lib/auth-redirect";
 
@@ -56,9 +53,6 @@ interface AuthContextValue {
   clearError: () => void;
   signIn: () => Promise<FilosageUser>;
   signInWithRedirect: (postLoginPath?: string) => Promise<void>;
-  signInWithProvider: (provider: "google" | "filosage", postLoginPath?: string) => Promise<void>;
-  useExistingGoogleSignIn: (recoverIdentity?: boolean, postLoginPath?: string) => Promise<void>;
-  connectExternalIdentity: (returnPath?: string) => Promise<void>;
   reauthenticate: (postLoginPath?: string) => Promise<FilosageUser>;
   acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: FilosageUser) => Promise<void>;
   signOut: () => Promise<void>;
@@ -69,12 +63,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const localAuthAvailable = process.env.NODE_ENV === "development";
 const LOCAL_SESSION_KEY = "filosage-local-session";
 const MAX_ACCOUNT_RESPONSE_BYTES = 64 * 1024;
-const MAX_LINK_RESPONSE_BYTES = 16 * 1024;
 const DEFAULT_AUTHENTICATION: ManagedAuthenticationState["authentication"] = {
   primaryProvider: "google",
-  externalIdAvailable: false,
-  externalIdNewAccountsAvailable: false,
-  legacyGoogleAvailable: false,
+  googleAvailable: false,
 };
 
 function localOwnerUser(): FilosageUser {
@@ -128,26 +119,7 @@ function exactLinkRequiredError(value: unknown) {
   return isRecord(value)
     && Object.keys(value).sort().join(",") === "code,error"
     && value.code === "identity_link_required"
-    && value.error === "This email is already connected to a Filosage learning account. Confirm your existing sign-in to connect the new method.";
-}
-
-function exactIdentityLinkRedirect(value: unknown) {
-  if (typeof value !== "string" || !value.startsWith("/.auth/login/filosage?")) return null;
-  try {
-    const parsed = new URL(value, window.location.origin);
-    const entries = [...parsed.searchParams.entries()];
-    if (parsed.origin !== window.location.origin
-      || parsed.pathname !== "/.auth/login/filosage"
-      || parsed.hash
-      || entries.length !== 1
-      || entries[0][0] !== "post_login_redirect_uri"
-      || entries[0][1] !== "/auth/complete-link") {
-      return null;
-    }
-    return "/.auth/login/filosage?post_login_redirect_uri=%2Fauth%2Fcomplete-link";
-  } catch {
-    return null;
-  }
+    && value.error === "This Google identity conflicts with an existing Filosage account record.";
 }
 
 export function useAuth() {
@@ -157,12 +129,7 @@ export function useAuth() {
 }
 
 function authErrorMessage(error: unknown) {
-  const code = typeof error === "object" && error !== null && "code" in error
-    ? String(error.code)
-    : "";
-  if (code === "easy_auth_unavailable") {
-    return "Sign-in is temporarily unavailable. Your learning data has not changed. Please try again.";
-  }
+  void error;
   return "Sign-in could not be completed. Your learning data has not changed. Please try again.";
 }
 
@@ -191,70 +158,15 @@ async function persistLegalAcceptance(
   if (!response.ok) throw new Error("Your acceptance could not be saved. Please try again.");
 }
 
-async function identityLinkRedirect(returnPath: string) {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 8_000);
-  try {
-    const response = await fetch(`/api/auth/link-intent?return=${encodeURIComponent(returnPath)}`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    });
-    const value = await readBoundedJsonResponse(
-      response,
-      MAX_LINK_RESPONSE_BYTES,
-      "The secure connection could not be started.",
-    );
-    if (response.status === 429) {
-      throw new Error("Too many connection attempts. Wait a few minutes, then try again.");
-    }
-    if (!response.ok || !isRecord(value)) {
-      const message = isRecord(value)
-        && Object.keys(value).sort().join(",") === "error"
-        && typeof value.error === "string"
-        && value.error.length <= 300
-        ? value.error
-        : "The secure connection could not be started.";
-      throw new Error(message);
-    }
-    const keys = Object.keys(value).sort().join(",");
-    if (keys !== "redirectTo" && keys !== "expiresAt,redirectTo") {
-      throw new Error("The secure connection could not be started.");
-    }
-    if ("expiresAt" in value
-      && (typeof value.expiresAt !== "string" || !Number.isFinite(Date.parse(value.expiresAt)))) {
-      throw new Error("The secure connection could not be started.");
-    }
-    const redirectTo = exactIdentityLinkRedirect(value.redirectTo);
-    if (!redirectTo) throw new Error("The secure connection could not be started.");
-    return redirectTo;
-  } catch (error) {
-    if (controller.signal.aborted) {
-      throw new Error(
-        "The secure connection took too long. Check your network and try again.",
-        { cause: error },
-      );
-    }
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
-  }
-}
-
 function managedProviderAvailable(
   authentication: ManagedAuthenticationState["authentication"],
-  forNewAccount = false,
 ) {
-  if (authentication.primaryProvider === null) return false;
-  return authentication.primaryProvider === "filosage"
-    ? (forNewAccount ? authentication.externalIdNewAccountsAvailable : authentication.externalIdAvailable)
-    : authentication.legacyGoogleAvailable;
+  return authentication.primaryProvider === "google" && authentication.googleAvailable;
 }
 
 function boundedAccountError(error: unknown) {
   return error instanceof Error && [
-    "Azure authentication status is unavailable.",
+    "Authentication status is unavailable.",
     "Your account is taking longer than expected. You can keep learning while it reconnects.",
     "Your session is taking longer than expected. You can keep learning while it reconnects.",
   ].includes(error.message)
@@ -298,10 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authentication, setAuthentication] = useState(DEFAULT_AUTHENTICATION);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const pendingHintsRef = useRef<{
-    acceptance: ReturnType<typeof parsePendingManagedRedirectAcceptance>;
-    recovery: ReturnType<typeof parsePendingIdentityRecovery>;
-  } | null>(null);
+  const pendingAcceptanceRef = useRef<ReturnType<typeof parsePendingManagedRedirectAcceptance> | null>(null);
 
   const loadAccount = useCallback(async (nextUser: FilosageUser | null) => {
     const session = learnerSessionSnapshot();
@@ -362,15 +271,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const operation = ++authOperationRef.current;
-    if (pendingHintsRef.current === null) {
+    if (pendingAcceptanceRef.current === null) {
       const storedAcceptance = sessionStorage.getItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
-      const storedRecovery = sessionStorage.getItem(PENDING_IDENTITY_RECOVERY_KEY);
-      pendingHintsRef.current = {
-        acceptance: parsePendingManagedRedirectAcceptance(storedAcceptance),
-        recovery: parsePendingIdentityRecovery(storedRecovery),
-      };
+      pendingAcceptanceRef.current = parsePendingManagedRedirectAcceptance(storedAcceptance);
       if (storedAcceptance) sessionStorage.removeItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
-      if (storedRecovery) sessionStorage.removeItem(PENDING_IDENTITY_RECOVERY_KEY);
     }
 
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
@@ -397,7 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     }, 10_000);
-    void currentEasyAuthState().then(async (state) => {
+    void currentAuthenticationState().then(async (state) => {
       if (cancelled || operation !== authOperationRef.current) return;
       setAuthentication(state.authentication);
       const active = commitUser(state.user);
@@ -407,27 +311,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const restoredAccount = await loadAccount(active);
       if (cancelled || operation !== authOperationRef.current) return;
-      const pendingRecovery = pendingHintsRef.current?.recovery ?? null;
-      const pendingAcceptance = pendingHintsRef.current?.acceptance ?? null;
-      const willRecoverIdentity = state.user.provider === "google" && pendingRecovery !== null;
+      const pendingAcceptance = pendingAcceptanceRef.current;
       const willPersistAcceptance = pendingAcceptance !== null
-        && !restoredAccount?.identityLinkRequired
-        && !willRecoverIdentity;
+        && !restoredAccount?.identityLinkRequired;
       if (!willPersistAcceptance && !cancelled) setLoading(false);
-      if (cancelled || (restoredAccount?.identityLinkRequired && !willRecoverIdentity)) return;
-
-      if (willRecoverIdentity && pendingRecovery) {
-        try {
-          window.location.assign(await identityLinkRedirect(pendingRecovery.returnPath));
-        } catch (recoveryError) {
-          if (!cancelled) {
-            setError(recoveryError instanceof Error
-              ? recoveryError.message
-              : "The secure connection could not be started.");
-          }
-        }
-        return;
-      }
+      if (cancelled || restoredAccount?.identityLinkRequired) return;
       if (willPersistAcceptance && pendingAcceptance) {
         await persistLegalAcceptance(state.user, pendingAcceptance.source);
         await loadAccount(state.user);
@@ -458,7 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const state = localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)
           ? { user: localOwnerUser(), authentication: DEFAULT_AUTHENTICATION }
-          : await currentEasyAuthState();
+          : await currentAuthenticationState();
         if (disposed || operation !== authOperationRef.current) return;
         setAuthentication(state.authentication);
         setSessionResolved(true);
@@ -528,7 +416,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     try {
       return await beginManagedSignIn(
-        provider,
         `${window.location.pathname}${window.location.search}`,
       );
     } catch (signInError) {
@@ -553,7 +440,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Managed authentication is not configured.");
     }
     const provider = authentication.primaryProvider;
-    if (!provider || !managedProviderAvailable(authentication, true)) {
+    if (!provider || !managedProviderAvailable(authentication)) {
       setError("Secure sign-in is temporarily unavailable.");
       throw new Error("The selected managed provider is unavailable.");
     }
@@ -563,7 +450,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         JSON.stringify(pendingManagedRedirectAcceptance()),
       );
       await beginManagedSignIn(
-        provider,
         postLoginPath ?? `${window.location.pathname}${window.location.search}`,
       );
     } catch (redirectError) {
@@ -572,64 +458,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw redirectError;
     }
   }, [authentication, commitUser, loadAccount]);
-
-  const signInWithProvider = useCallback(async (provider: "google" | "filosage", postLoginPath?: string) => {
-    setError(null);
-    const available = provider === "google"
-      ? authentication.legacyGoogleAvailable
-      : authentication.externalIdAvailable;
-    if (!available) {
-      const message = "The selected sign-in method is temporarily unavailable.";
-      setError(message);
-      throw new Error(message);
-    }
-    try {
-      await beginManagedSignIn(provider, postLoginPath ?? `${window.location.pathname}${window.location.search}`);
-    } catch (signInError) {
-      setError(authErrorMessage(signInError));
-      throw signInError;
-    }
-  }, [authentication.externalIdAvailable, authentication.legacyGoogleAvailable]);
-
-  const useExistingGoogleSignIn = useCallback(async (recoverIdentity = false, postLoginPath?: string) => {
-    setError(null);
-    if (!authentication.legacyGoogleAvailable) {
-      const message = "The existing Google sign-in is not available. Sign out and choose another method.";
-      setError(message);
-      throw new Error(message);
-    }
-    if (recoverIdentity) {
-      sessionStorage.setItem(
-        PENDING_IDENTITY_RECOVERY_KEY,
-        JSON.stringify(pendingIdentityRecovery()),
-      );
-    }
-    try {
-      await beginManagedSignIn(
-        "google",
-        postLoginPath ?? `${window.location.pathname}${window.location.search}`,
-      );
-    } catch (signInError) {
-      if (recoverIdentity) sessionStorage.removeItem(PENDING_IDENTITY_RECOVERY_KEY);
-      setError(authErrorMessage(signInError));
-      throw signInError;
-    }
-  }, [authentication.legacyGoogleAvailable]);
-
-  const connectExternalIdentity = useCallback(async (returnPath = "/profile?identity-linked=1") => {
-    setError(null);
-    if (!authentication.externalIdAvailable) {
-      const message = "Email-code sign-in is not available yet.";
-      setError(message);
-      throw new Error(message);
-    }
-    try {
-      window.location.assign(await identityLinkRedirect(returnPath));
-    } catch (linkError) {
-      setError(linkError instanceof Error ? linkError.message : "The secure connection could not be started.");
-      throw linkError;
-    }
-  }, [authentication.externalIdAvailable]);
 
   const acceptLegalTerms = useCallback(async (
     source: "signup" | "terms-update" | "subscription",
@@ -653,19 +481,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
     setError(null);
     sessionStorage.removeItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
-    sessionStorage.removeItem(PENDING_IDENTITY_RECOVERY_KEY);
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
       localStorage.removeItem(LOCAL_SESSION_KEY);
       return;
     }
     if (!isManagedAuthConfigured && !user) return;
-    await signOutFromEasyAuth("/");
+    await signOutFromAuthentication("/");
   }, [commitUser, user]);
 
   const reauthenticate = useCallback(async (postLoginPath = "/privacy-center") => {
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) return localOwnerUser();
     if (!user || user.provider === "local") throw new Error("Sign in before confirming this action.");
-    const nextUser = await beginManagedReauthentication(user.provider, user.uid, postLoginPath);
+    const nextUser = await beginManagedReauthentication(user.uid, postLoginPath);
     return commitUser(nextUser)!;
   }, [commitUser, user]);
 
@@ -691,9 +518,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearError: () => setError(null),
       signIn,
       signInWithRedirect,
-      signInWithProvider,
-      useExistingGoogleSignIn,
-      connectExternalIdentity,
       reauthenticate,
       acceptLegalTerms,
       signOut,
@@ -708,9 +532,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       signIn,
       signInWithRedirect,
-      signInWithProvider,
-      useExistingGoogleSignIn,
-      connectExternalIdentity,
       reauthenticate,
       acceptLegalTerms,
       signOut,

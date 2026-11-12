@@ -8,7 +8,7 @@ import { putStoredDocument, getStoredDocument, getLesson } from "../../src/lib/d
 import { POST as generateCourse } from "../../src/app/api/generate-course/route.ts";
 import { POST as generateLesson } from "../../src/app/api/generate-lesson/route.ts";
 import { TERMS_VERSION, PRIVACY_VERSION } from "../../src/lib/legal.ts";
-if (process.env.OPENAI_API_KEY || process.env.DATABASE_URL || process.env.NODE_ENV === "production") throw new Error("Lesson route fixtures require isolated local mode without provider keys.");
+if (process.env.OPENAI_API_KEY || process.env.CLOUDFLARE_D1_ENABLED === "true" || process.env.NODE_ENV === "production") throw new Error("Lesson route fixtures require isolated local mode without provider keys.");
 const directory = mkdtempSync(join(tmpdir(), "lesson-route-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 after(() => rmSync(directory, { recursive: true, force: true }));

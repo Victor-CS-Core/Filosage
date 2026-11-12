@@ -1,6 +1,6 @@
 export const DIRECT_GOOGLE_ISSUER = "https://accounts.google.com" as const;
 
-export type IdentityProviderId = "google" | "filosage" | "local";
+export type IdentityProviderId = "google" | "local";
 
 export interface VerifiedProviderIdentity {
   provider: IdentityProviderId;

@@ -39,10 +39,8 @@ export default function ProfilePage() {
   const {
     user,
     account,
-    authentication,
     canCreateCourses,
     loading: authLoading,
-    connectExternalIdentity,
     refreshAccount,
   } = useAuth();
   const { state, update, syncStatus, syncError, loadStatus, retry } = useLearnerState();
@@ -53,9 +51,6 @@ export default function ProfilePage() {
   const authoredCourses = authoredSource.data?.courses ?? [];
   const loaded = progressSource.data !== undefined && authoredSource.data !== undefined;
   const [filter, setFilter] = useState<BadgeFilter>("all");
-  const [connectBusy, setConnectBusy] = useState(false);
-  const [connectError, setConnectError] = useState<string | null>(null);
-  const connectBusyRef = useRef(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const nameBusyRef = useRef(false);
   const [editingName, setEditingName] = useState(false);
@@ -70,27 +65,6 @@ export default function ProfilePage() {
   useEffect(() => {
     if (editingName) nameInputRef.current?.focus();
   }, [editingName]);
-
-  const beginExternalConnection = async () => {
-    if (connectBusyRef.current) return;
-    connectBusyRef.current = true;
-    setConnectBusy(true);
-    setConnectError(null);
-    try {
-      await connectExternalIdentity();
-    } catch (connectionError) {
-      const message = connectionError instanceof Error && [
-        "Too many connection attempts. Wait a few minutes, then try again.",
-        "The secure connection took too long. Check your network and try again.",
-      ].includes(connectionError.message)
-        ? connectionError.message
-        : "Email-code sign-in could not be started. Your account is unchanged. Try again.";
-      setConnectError(message);
-    } finally {
-      connectBusyRef.current = false;
-      setConnectBusy(false);
-    }
-  };
 
   const beginNameEdit = () => {
     setNameDraft(normalizeDisplayName(account?.displayName)
@@ -307,14 +281,6 @@ export default function ProfilePage() {
                   <div className="profile-side-heading"><UserRound size={18} /><h2>Account and privacy</h2></div>
                   <p>Download your information, submit a privacy request, or close your account.</p>
                   <Link href="/privacy-center">Open privacy center</Link>
-                  {user.provider === "google" && authentication.externalIdAvailable && (
-                    <div className="profile-connect-action">
-                      <button className="text-button" type="button" aria-label="Add email-code sign-in" disabled={connectBusy} aria-busy={connectBusy} onClick={() => void beginExternalConnection()}>
-                        {connectBusy ? "Opening secure connection…" : "Add email-code sign-in"}
-                      </button>
-                      {connectError && <p className="form-error" role="alert">{connectError}</p>}
-                    </div>
-                  )}
                 </section>
               </aside>
             </div>

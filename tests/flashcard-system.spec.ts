@@ -48,7 +48,7 @@ test("local sample configuration stays fail-closed while generation accounting s
 test("flashcard failure refunds the metered event while observed cost and completed replay settle once", () => {
   const result = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "tests/fixtures/flashcard-usage-behavior.ts"], {
     cwd: process.cwd(), encoding: "utf8", timeout: 30_000,
-    env: { ...process.env, NODE_ENV: "test", DATABASE_URL: "" },
+    env: { ...process.env, NODE_ENV: "test", CLOUDFLARE_D1_ENABLED: "" },
   });
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(result.stdout).toContain("# fail 0");

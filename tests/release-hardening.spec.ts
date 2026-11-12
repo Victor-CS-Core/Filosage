@@ -41,11 +41,6 @@ const discoverSpecs = (directory: string): string[] => readdirSync(directory, { 
     return entry.isFile() && path.endsWith(".spec.ts") ? [path] : [];
   });
 
-const azureBicep = read("infra/azure/main.bicep");
-const candidateVerificationWorkflow = read(".github/workflows/azure-candidate-verification.yml");
-const stagingWorkflow = read(".github/workflows/azure-staging.yml");
-const promotionWorkflow = read(".github/workflows/azure-promote-staging.yml");
-const releaseDeployment = read("scripts/azure-blue-green.mjs");
 const qualityWorkflow = read(".github/workflows/quality-gate.yml");
 const fullRegressionWorkflowPath = ".github/workflows/full-regression.yml";
 const fullRegressionWorkflow = existsSync(fullRegressionWorkflowPath) ? read(fullRegressionWorkflowPath) : "";
@@ -136,58 +131,6 @@ const discoverBrowserTests = (project: string, extraArgs: string[] = []) => {
   }
 };
 
-test("the app trusts Easy Auth headers only when the platform auth resource is configured", () => {
-  expect(azureBicep).toContain(
-    "var directGoogleConfigured = directGoogleAuthEnabled && !empty(googleClientId) && !empty(googleClientSecret)",
-  );
-  expect(azureBicep).toContain(
-    "var externalIdConfigurationComplete = !empty(externalIdClientId) && !empty(externalIdClientSecret) && !empty(externalIdIssuer) && !empty(externalIdWellKnownConfiguration)",
-  );
-  expect(azureBicep).toContain(
-    "var easyAuthConfigured = directGoogleConfigured || externalIdConfigurationComplete",
-  );
-  expect(azureBicep).toContain(
-    "{ name: 'AZURE_EASY_AUTH_ENABLED', value: string(easyAuthConfigured) }",
-  );
-  expect(azureBicep).toContain(
-    "resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = if (deployApplication && easyAuthConfigured)",
-  );
-});
-
-test("staging explicitly preserves the closed-billing release boundary", () => {
-  expect(releaseDeployment).toContain('BILLING_ENABLED: "false"');
-  expect(releaseDeployment).toContain('BILLING_ROLLOUT_MODE: "closed"');
-  expect(releaseDeployment).toContain('check("check-release-safety.mjs", [origin], options)');
-  expect(releaseDeployment.indexOf("smoke(candidate);")).toBeLessThan(releaseDeployment.indexOf("const traffic = candidateTraffic(before, revisionName)"));
-  expect(stagingWorkflow).toContain("node scripts/azure-blue-green.mjs stage");
-});
-
-test("Azure release workflows resolve runner paths only after a runner starts", () => {
-  const workflows = [
-    [".github/workflows/azure-candidate-verification.yml", candidateVerificationWorkflow],
-    [".github/workflows/azure-staging.yml", stagingWorkflow],
-    [".github/workflows/azure-promote-staging.yml", promotionWorkflow],
-  ] as const;
-
-  for (const [path, workflow] of workflows) {
-    expect(
-      workflow,
-      `${path} cannot use the runner context in job-level environment variables`,
-    ).not.toMatch(/^ {6}[A-Z_][A-Z0-9_]*:.*\$\{\{\s*runner\./m);
-  }
-  expect(releaseDeployment).toContain('join(process.env.RUNNER_TEMP || "/tmp", "blue-green-evidence")');
-});
-
-test("failed promotion restores only the reviewed compatible predecessor from known traffic", () => {
-  expect(promotionWorkflow).toContain("if: failure() || cancelled()");
-  expect(promotionWorkflow).toContain("node scripts/azure-blue-green.mjs rollback");
-  expect(releaseDeployment).toContain('json(path)');
-  expect(releaseDeployment).toContain("validateHostedReview(verified.packet, candidate)");
-  expect(releaseDeployment).toContain("verify(candidate, true)");
-  expect(releaseDeployment).toContain('"--revision-weight", `${candidate.previous.revision}=100`, `${candidate.revision}=0`');
-  expect(releaseDeployment).toContain("traffic restoration alone is insufficient");
-});
-
 test("the general browser matrix excludes suites that require dedicated seeded servers", () => {
   expect(playwrightConfig).toContain("testIgnore:");
   expect(playwrightConfig).toContain("dedicatedSuites");
@@ -222,9 +165,9 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
 
   expect(new Set(categorized).size).toBe(categorized.length);
   expect(categorized.toSorted()).toEqual(discovered);
-  expect(contractSuites).toHaveLength(37);
+  expect(contractSuites).toHaveLength(33);
   expect(apiSuites).toHaveLength(2);
-  expect(singleEngineSuites).toHaveLength(19);
+  expect(singleEngineSuites).toHaveLength(17);
   expect(deviceSensitiveSuites).toHaveLength(10);
   expect(dedicatedSuites).toHaveLength(4);
 });
@@ -293,7 +236,6 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   expect(plan.batchesByProject["mobile-webkit"].flat()).not.toContain("tests/marketing-gauntlet.spec.ts");
   const desktopBatchContaining = (suite: string) => plan.batchesByProject.chromium.find((batch) => batch.includes(suite));
   expect(desktopBatchContaining("tests/course-learning-flow.spec.ts")).not.toContain("tests/example.spec.ts");
-  expect(desktopBatchContaining("tests/auth-linking.spec.ts")).not.toContain("tests/billing-lifecycle.spec.ts");
   const basenameOnly = spawnSync(
     process.execPath,
     ["--experimental-strip-types", "scripts/run-playwright-matrix.mjs", "marketing-gauntlet.spec.ts"],
@@ -439,7 +381,6 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
     "tests/account-onboarding.spec.ts",
     "tests/analytics-consent.spec.ts",
     "tests/auth-accessibility.spec.ts",
-    "tests/auth-linking.spec.ts",
     "tests/billing-lifecycle.spec.ts",
     "tests/command-center.spec.ts",
     "tests/publication-override.spec.ts",
@@ -467,26 +408,6 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:shared-evidence:ui");
   expect(fullRegressionWorkflow.match(/runs-on:/g)).toHaveLength(1);
-  for (const workflow of [qualityWorkflow, fullRegressionWorkflow]) {
-    const fixture = mkdtempSync(resolve(process.cwd(), ".apt-mirror-check-"));
-    try {
-      mkdirSync(resolve(fixture, "apt.conf.d"));
-      mkdirSync(resolve(fixture, "sources.list.d"));
-      const mirror = resolve(fixture, "apt-mirrors.txt");
-      const sources = resolve(fixture, "sources.list.d/ubuntu.sources");
-      writeFileSync(mirror, "http://azure.archive.ubuntu.com/ubuntu\n");
-      writeFileSync(sources, "URIs: mirror+file:/etc/apt/apt-mirrors.txt\nOther: https://packages.microsoft.com/ubuntu\n");
-      const block = workflow.split("- name: Use upstream Ubuntu mirror for browser dependencies")[1]
-        ?.split("run: |\n")[1]?.split(/\n {6}- /)[0];
-      expect(block).toBeTruthy();
-      const execution = spawnSync("bash", ["-c", `sudo() { "$@"; }\n${block!.replaceAll("/etc/apt", fixture)}`], { encoding: "utf8" });
-      expect(execution.status, execution.stderr).toBe(0);
-      expect(read(mirror)).toBe("https://archive.ubuntu.com/ubuntu\n");
-      expect(read(sources)).toContain("https://packages.microsoft.com/ubuntu");
-    } finally {
-      rmSync(fixture, { recursive: true, force: true });
-    }
-  }
 });
 
 test("mobile projects execute only explicitly owned cross-device behavior", () => {
@@ -500,7 +421,7 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   ] as const) {
     expect(discovery.suites).toEqual([...browserSuitesByProject[project]].toSorted());
   }
-  expect(chromium.count).toBeGreaterThanOrEqual(280);
+  expect(chromium.count).toBeGreaterThanOrEqual(278);
   expect(mobileChromium.count).toBeGreaterThan(0);
   expect(mobileWebkit.count).toBeGreaterThan(0);
   // September 12 release discovery: 328 desktop / 45 mobile Chromium / 52 WebKit.
@@ -529,7 +450,7 @@ test("release workflows accept only exact successful workflow evidence", () => {
     workflow_runs: [{
       id: 123,
       run_attempt: 1,
-      jobs: { total_count: 3, jobs: ["static-and-release-contracts", "browser-smoke", "postgres-transactions"].map((name, index) => ({
+      jobs: { total_count: 3, jobs: ["static-and-release-contracts", "browser-smoke", "worker-bundle-smoke"].map((name, index) => ({
         id: index + 1, run_id: 123, run_attempt: 1, head_sha: sha, name, status: "completed", conclusion: "success",
       })) },
       conclusion: "success",
@@ -571,10 +492,6 @@ test("release workflows accept only exact successful workflow evidence", () => {
   expect(oversized.status).toBe(1);
   expect(applicationStderr(oversized.stderr)).toBe("Required workflow evidence is unavailable.\n");
   expect(oversized.stdout).toBe("");
-  expect(releaseDeployment).toContain("result.head_sha !== sha");
-  expect(releaseDeployment).toContain("result.conclusion !== \"success\"");
-  expect(releaseDeployment).toContain(".github/workflows/full-regression.yml");
-  expect(stagingWorkflow).not.toContain("- run: npm ci");
 });
 
 test("the umbrella runner routes file filters to exactly one execution lane", () => {
@@ -677,10 +594,10 @@ test("small uppercase marketing notes use the higher-contrast text token", () =>
 });
 
 test("the privacy notice describes the automated account export honestly", () => {
-  expect(privacyNotice).toContain("Operational owner drafts and internal notes are not included in the automated learner export");
+  expect(privacyNotice).toMatch(/Operational owner\s+drafts and internal notes are not included in the automated learner\s+export/);
   expect(privacyNotice).not.toContain("Drafts linked to your account are included in your account-data export");
-  expect(privacyNotice).toContain("Raw Spark tutor messages stored by Filosage are retained for 30 days by default");
-  expect(privacyNotice).toContain("Committed attempts and educational evidence remain with the learning record");
+  expect(privacyNotice).toMatch(/Raw Spark tutor messages stored by Filosage are retained for 30 days\s+by default/);
+  expect(privacyNotice).toMatch(/Committed\s+attempts\s+and\s+educational\s+evidence\s+remain\s+with\s+the\s+learning\s+record/);
 });
 
 test("the README describes the current visitor and paid-plan contracts", () => {
@@ -723,20 +640,17 @@ test("CI cost controls preserve automatic quality and exact manual release proof
   }
   expect(fullRegressionWorkflow).toContain('test "$actual_sha" = "$EXPECTED_RELEASE_SHA"');
   expect(fullRegressionWorkflow).toContain("name: full-regression-evidence");
-  expect(read("scripts/azure-blue-green.mjs")).toContain('requireRun(env.QUALITY_RUN_ID, ".github/workflows/quality-gate.yml")');
-  expect(read("scripts/azure-blue-green.mjs")).toContain('requireRun(env.REGRESSION_RUN_ID, ".github/workflows/full-regression.yml")');
-
   const jobs = qualityWorkflow.replaceAll("\r\n", "\n").split("\njobs:\n")[1] ?? "";
   const timeouts = Object.fromEntries([...jobs.matchAll(/^ {2}([\w-]+):\n((?: {4}[^\n]*\n|\n)+)/gm)]
     .map(([, job, body]) => [job, Number(body.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1])]));
-  expect(timeouts).toEqual({ "static-and-release-contracts": 15, "browser-smoke": 20, "worker-bundle-smoke": 25, "postgres-transactions": 10 });
+  expect(timeouts).toEqual({ "static-and-release-contracts": 15, "browser-smoke": 20, "worker-bundle-smoke": 25 });
   expect(qualityWorkflow).toContain("cancel-in-progress: true");
   expect(qualityWorkflow).toContain("workflow_dispatch:");
   expect(qualityWorkflow).not.toMatch(/^\s+paths(?:-ignore)?:/m);
   expect(qualityWorkflow).toContain("fetch-depth: 0");
   expect(qualityWorkflow).toContain("run: node scripts/ci-change-scope.mjs");
   expect(qualityWorkflow).toContain("run: node --test tests/ci/*.test.mjs tests/workflow-quality-evidence.test.mjs");
-  for (const job of ["browser-smoke", "postgres-transactions"]) {
+  for (const job of ["browser-smoke", "worker-bundle-smoke"]) {
     expect(qualityWorkflow).toContain(`${job}:\n    needs: static-and-release-contracts\n    if: needs.static-and-release-contracts.outputs.full == 'true'`);
   }
   for (const command of ["npm ci", "npm run lint", "npm run build", "npm run test:billing"]) {

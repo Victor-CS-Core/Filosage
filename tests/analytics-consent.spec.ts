@@ -70,9 +70,7 @@ test("analytics can be allowed and later withdrawn from Privacy choices", { tag:
         recentAuthentication: false,
         authentication: {
           primaryProvider: "google",
-          externalIdAvailable: false,
-          externalIdNewAccountsAvailable: false,
-          legacyGoogleAvailable: true,
+          googleAvailable: true,
         },
         user: null,
       }),

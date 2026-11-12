@@ -30,7 +30,7 @@ export async function GET() {
       await reportOperationalEvent({
         severity: "critical",
         code: "health.datastore_unavailable",
-        message: "The production health check could not reach the Azure PostgreSQL document store.",
+        message: "The production health check could not reach the Cloudflare D1 document store.",
       });
     }
   }

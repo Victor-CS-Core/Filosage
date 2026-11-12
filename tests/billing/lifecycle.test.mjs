@@ -51,12 +51,7 @@ class FixtureStripe extends Stripe {
 }
 mock.module('stripe', { defaultExport: FixtureStripe });
 const fileDirectory = await mkdtemp(join(process.cwd(), '.billing-fixture-'));
-const pgFixture = process.env.FILOSAGE_POSTGRES_TEST_URL
-  ? await (await import('../postgres/fixture.ts')).createPostgresFixture() : null;
-if (!pgFixture) {
-  assert.ok(!process.env.DATABASE_URL, 'Refuse arbitrary database fallback');
-  Object.assign(process.env, { NODE_ENV: 'development', FILOSAGE_LOCAL_DIR: relative(process.cwd(), fileDirectory) });
-}
+Object.assign(process.env, { NODE_ENV: 'development', FILOSAGE_LOCAL_DIR: relative(process.cwd(), fileDirectory) });
 Object.assign(process.env, {
   BILLING_PROVIDER: 'stripe', BILLING_ENABLED: 'false', BILLING_ROLLOUT_MODE: 'closed',
   STRIPE_SECRET_KEY: 'sk_test_fixture_not_real', STRIPE_WEBHOOK_SECRET: 'whsec_fixture_not_real',
@@ -65,7 +60,7 @@ Object.assign(process.env, {
   NEXT_PUBLIC_SITE_URL: 'https://filosage.test', STRIPE_TAX_READY: 'true',
 });
 delete process.env.STRIPE_PORTAL_CONFIGURATION_ID;
-const rawStore = pgFixture?.store ?? await import('../../src/lib/document-store.ts');
+const rawStore = await import('../../src/lib/document-store.ts');
 const lifecycleApi = await import('../../src/lib/account-lifecycle.ts');
 const store = {
   ...rawStore,
@@ -82,13 +77,11 @@ const { TERMS_VERSION, PRIVACY_VERSION } = await import('../../src/lib/legal.ts'
 const { MEMBERSHIP_PLANS } = await import('../../src/lib/membership-plans.ts');
 const testPrefix = `billing_${crypto.randomUUID().replaceAll('-', '')}`;
 let sequence = 0;
-const tracked = new Set();
 const paths = uid => ({ account: `users/${uid}`, ledger: `users/${uid}/courseCredits/current` });
 const offers = ['plus', 'pro'].flatMap(plan => ['monthly', 'annual'].map(interval => ({ plan, interval, price: `price_${plan}_${interval}` })));
 const currentSecond = () => Math.floor(Date.now()/1000);
 function fixture(offer = offers[0], uidOverride) {
   const uid = uidOverride ?? `${testPrefix}_${++sequence}`;
-  tracked.add(uid);
   const customer = { object: 'customer', id: `cus_${uid}`, metadata: { filosage_uid: uid } };
   const subscription = {
     object: 'subscription', id: `sub_${uid}`, customer: customer.id, metadata: { filosage_uid: uid },
@@ -141,12 +134,6 @@ async function deliver(f, type, { id = `evt_${testPrefix}_${++sequence}`, create
 }
 async function read(f) { return { account: await store.getStoredDocument(paths(f.uid).account), ledger: await store.getStoredDocument(paths(f.uid).ledger) }; }
 after(async () => {
-  if (pgFixture) {
-    for (const uid of tracked) await pgFixture.monitor.query('DELETE FROM filosage_documents WHERE path = $1 OR left(path, length($2)) = $2 OR path = $3 OR path = $4', [`users/${uid}`, `users/${uid}/`, `accountLifecycles/${uid}`, `accountDeletionJobs/job_${uid}`]);
-    await pgFixture.monitor.query('DELETE FROM filosage_documents WHERE left(path, length($1)) = $1', [`stripeEvents/evt_${testPrefix}_`]);
-    for (const kind of ['started', 'canceled']) await pgFixture.monitor.query('DELETE FROM filosage_documents WHERE left(path, length($1)) = $1', [`productEvents/stripe-${kind}-evt_${testPrefix}_`]);
-    await pgFixture.close();
-  }
   await rm(fileDirectory, { recursive: true, force: true });
 });
 
@@ -384,7 +371,7 @@ test('scheduled cancellation is exposed before expiry including flexible billing
   assert.equal((await read(f)).account.billingCancelAtPeriodEnd, false);
 });
 
-test('account API and strict client parser carry scheduled cancellation without provider identifiers', { skip: Boolean(pgFixture) }, async () => {
+test('account API and strict client parser carry scheduled cancellation without provider identifiers', async () => {
   const f = fixture(offers[0], 'local-free-learner'); await seed(f);
   f.subscription.cancel_at_period_end = true;
   assert.equal((await deliver(f, 'customer.subscription.updated')).status, 200);
@@ -440,7 +427,7 @@ test('four Checkout offers restrict methods to card and signed completion record
   }
 });
 
-test('authenticated Portal route permits suspended/stale-Terms cancellation without accepting Terms', { skip: Boolean(pgFixture) }, async () => {
+test('authenticated Portal route permits suspended/stale-Terms cancellation without accepting Terms', async () => {
   const f = fixture(offers[0], 'local-free-learner'); await seed(f);
   const original = (await read(f)).account;
   await store.putStoredDocument(paths(f.uid).account, { ...original, accountStatus: 'suspended', acceptedTermsVersion: 'historical-terms' });
@@ -487,9 +474,6 @@ test('late signed Checkout after deletion contains owned billing without restori
   assert.equal((await read(f)).account, null);
   assert.equal((await read(f)).ledger, null);
   assert.equal(await store.getStoredDocument(`users/${f.uid}/billingReconciliation/current`), null);
-  if (pgFixture) {
-    await pgFixture.monitor.query('DELETE FROM filosage_documents WHERE path = ANY($1::text[])', [[`accountLifecycles/${f.uid}`, `accountDeletionJobs/${jobId}`]]);
-  }
 });
 
 test('an in-flight signed subscription update cannot cross the account deletion generation fence', async () => {
@@ -516,7 +500,6 @@ test('an in-flight signed subscription update cannot cross the account deletion 
   assert.equal((await read(f)).ledger.balance, 2);
   assert.equal((await deliver(f, 'customer.subscription.updated')).status, 200);
   assert.equal(f.subscription.status, 'canceled');
-  if (pgFixture) await pgFixture.monitor.query('DELETE FROM filosage_documents WHERE path = $1', [`accountDeletionJobs/${jobId}`]);
 });
 
 test('a payment completed between the event read and leased invoice refresh grants paid access', async () => {
@@ -632,7 +615,6 @@ for (const outcome of ['expired', 'unknown', 'completed', 'replaced', 'missing',
       }
     } finally {
       beforeRead = undefined; checkoutCreateUnknown = false; release();
-      if (pgFixture) await pgFixture.monitor.query('DELETE FROM filosage_documents WHERE path = $1', [`accountDeletionJobs/${job.jobId}`]);
     }
   });
 }

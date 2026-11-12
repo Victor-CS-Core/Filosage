@@ -1,7 +1,6 @@
 -- FiloSage document store schema for Cloudflare D1 (SQLite).
 --
--- Port of infra/azure/database/001_document_store.sql. Differences from the
--- PostgreSQL original:
+-- D1 document-store schema. SQLite-specific details:
 -- - `data` is TEXT holding a JSON document (SQLite has no jsonb type, but the
 --   JSON1 extension provides json_extract / json() used by d1-document-store.ts)
 -- - `timestamptz` -> TEXT storing ISO-8601 UTC (written as datetime('now'))

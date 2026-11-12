@@ -1,9 +1,9 @@
 // This is a concurrency claim, not authentication proof. The server first
 // verifies the platform identity, then requires any supplied claim to match it.
 export const EXPECTED_ACCOUNT_HEADER = "x-filosage-expected-uid";
-const LEGACY_SESSION_MARKER = "azure-easy-auth-session";
-const ACCOUNT_SESSION_PREFIX = `${LEGACY_SESSION_MARKER}.v1:`;
-const GENERATION_SESSION_PREFIX = `${LEGACY_SESSION_MARKER}.v2:`;
+const SESSION_MARKER = "filosage-account-session";
+const ACCOUNT_SESSION_PREFIX = `${SESSION_MARKER}.v1:`;
+const GENERATION_SESSION_PREFIX = `${SESSION_MARKER}.v2:`;
 export const EXPECTED_GENERATION_HEADER = "x-filosage-expected-generation";
 
 function canonicalUid(value: string) {
@@ -30,7 +30,7 @@ export function requestAccountMatchesVerifiedUid(headers: Headers, verifiedUid: 
   const header = headers.get(EXPECTED_ACCOUNT_HEADER);
   if (header !== null && decodeClaim(header) !== verifiedUid) return false;
   const bearer = headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (bearer?.startsWith(LEGACY_SESSION_MARKER) && bearer !== LEGACY_SESSION_MARKER) {
+  if (bearer?.startsWith(SESSION_MARKER) && bearer !== SESSION_MARKER) {
     if (bearer.startsWith(GENERATION_SESSION_PREFIX)) {
       const parts = bearer.slice(GENERATION_SESSION_PREFIX.length).split(":");
       if (parts.length !== 2 || decodeClaim(parts[0]) !== verifiedUid || !decodeClaim(parts[1])) return false;

@@ -1,33 +1,11 @@
 export function identityMaintenanceTarget(
   env: Record<string, string | undefined> = process.env,
 ) {
-  const databaseUrl = env.DATABASE_URL?.trim();
-  if (databaseUrl) {
-    let parsed: URL;
-    try {
-      parsed = new URL(databaseUrl);
-    } catch {
-      throw new Error("The PostgreSQL maintenance target is invalid.");
-    }
-    if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
-      throw new Error("The PostgreSQL maintenance target uses an unsupported protocol.");
-    }
-    let database: string;
-    try {
-      database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
-    } catch {
-      throw new Error("The PostgreSQL maintenance target database is invalid.");
-    }
-    const server = parsed.hostname;
-    if (
-      !/^[A-Za-z0-9.-]+$/.test(server)
-      || !/^[A-Za-z0-9_.-]{1,128}$/.test(database)
-    ) {
-      throw new Error("The PostgreSQL maintenance target is incomplete.");
-    }
-    return `postgres:${server}/${database}`;
+  const databaseId = env.CLOUDFLARE_D1_DATABASE_ID?.trim().toLowerCase();
+  if (!databaseId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(databaseId)) {
+    throw new Error("A valid Cloudflare D1 maintenance target is required.");
   }
-  throw new Error("No supported identity-maintenance datastore is configured.");
+  return `d1:${databaseId}`;
 }
 
 export function assertIdentityMaintenanceWriteTarget(

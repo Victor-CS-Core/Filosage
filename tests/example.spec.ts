@@ -597,9 +597,6 @@ test("only upgrades insecure assets on an HTTPS request", () => {
   expect(localHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(false);
   expect(securePolicy).toContain("upgrade-insecure-requests");
   expect(securePolicy).toContain("img-src 'self' data: blob: https://lh3.googleusercontent.com");
-  expect(securePolicy).not.toContain("ciamlogin.com");
-  expect(securePolicy).not.toContain("login.microsoftonline.com");
-  expect(securePolicy).not.toContain("graph.microsoft.com");
   expect(securePolicy).not.toContain(`${RETIRED_SYSTEM_NAMES[2]}io.com`);
   expect(secureHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(true);
 });
@@ -738,7 +735,7 @@ test("describes guest access and Pro publishing consistently across public pages
     await sessionHeld;
     await route.fulfill({ json: {
       user: null, recentAuthentication: false,
-      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+      authentication: { primaryProvider: "google", googleAvailable: true },
     } });
   });
   await pricing.route("**/api/billing/status", (route) => route.fulfill({ json: { ready: true, managementReady: true } }));
@@ -905,10 +902,8 @@ test("lets guests browse outlines while clearly gating lessons behind an account
     body: JSON.stringify({
       recentAuthentication: false,
       authentication: {
-        primaryProvider: "filosage",
-        externalIdAvailable: true,
-        externalIdNewAccountsAvailable: true,
-        legacyGoogleAvailable: true,
+        primaryProvider: "google",
+        googleAvailable: true,
       },
       user: null,
     }),
@@ -927,11 +922,9 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("browse published topics and inspect every course outline without an account");
-  await expect(dialog).toContainText("Choose Google, or we'll email you a one-time code, on the next secure screen");
-  await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" })).toBeVisible();
+  await expect(dialog).toContainText("Continue with Google on the next secure screen");
+  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
   await expect(dialog.locator(".auth-identity .auth-google-icon")).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" }).locator(".auth-google-icon")).toBeVisible();
   await expect(dialog.locator('input[type="email"]')).toHaveCount(0);
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
   await expect(dialog.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacy");
@@ -943,8 +936,8 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await expect(dialog.getByRole("button", { name: "Close sign-in dialog" })).toBeFocused();
 
   await dialog.getByRole("checkbox").check();
-  await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeEnabled();
-  await expect(dialog).toContainText("Microsoft securely manages sign-in. Filosage never sees your password or one-time code.");
+  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+  await expect(dialog).toContainText("Google handles sign-in securely. Filosage never sees your password.");
 
   if (testInfo.project.name === "chromium" || testInfo.project.name === "mobile-chromium") {
     const scratch = join(".codex-tmp", "task7-scratch");
@@ -971,17 +964,15 @@ test("keeps same-email recovery blocking and focus-contained", { tag: ["@mobile"
     json: {
       recentAuthentication: true,
       authentication: {
-        primaryProvider: "filosage",
-        externalIdAvailable: true,
-        externalIdNewAccountsAvailable: true,
-        legacyGoogleAvailable: true,
+        primaryProvider: "google",
+        googleAvailable: true,
       },
       user: {
         uid: "filosage-canonical-recovery",
         displayName: "Recovery Learner",
         email: "recovery@example.com",
         photoURL: null,
-        authenticationProvider: "filosage",
+        authenticationProvider: "google",
       },
     },
   }));
@@ -1020,14 +1011,12 @@ test("keeps same-email recovery blocking and focus-contained", { tag: ["@mobile"
   }));
 
   await page.goto("/");
-  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  const dialog = page.getByRole("dialog", { name: "Account review required" });
   await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
   await pressNativeSequentialFocus(page, sequentialFocus, "forward");
-  await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" })).toBeFocused();
-  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
-  await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: "Sign out" })).toBeFocused();
   expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
   expect(prematureReads).toEqual([]);
 });
@@ -1860,10 +1849,8 @@ test("returns focus to the truthful existing-account course launcher", { tag: ["
     json: {
       recentAuthentication: false,
       authentication: {
-        primaryProvider: "filosage",
-        externalIdAvailable: true,
-        externalIdNewAccountsAvailable: false,
-        legacyGoogleAvailable: false,
+        primaryProvider: "google",
+        googleAvailable: true,
       },
       user: null,
     },
@@ -1894,7 +1881,7 @@ test("returns focus to the truthful existing-account course launcher", { tag: ["
   await launcher.click();
   await expect(page).toHaveURL(/\/course\/Systems%20thinking\?id=public-preview$/);
   await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
-    .getByRole("button", { name: "Sign in with email code" })).toBeVisible();
+    .getByRole("button", { name: "Continue with Google" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(launcher).toBeFocused();
 });
@@ -1906,10 +1893,8 @@ test("shows guests the course structure but never delivers lesson content", asyn
     json: {
       recentAuthentication: false,
       authentication: {
-        primaryProvider: "filosage",
-        externalIdAvailable: true,
-        externalIdNewAccountsAvailable: false,
-        legacyGoogleAvailable: false,
+        primaryProvider: "google",
+        googleAvailable: true,
       },
       user: null,
     },
@@ -1927,7 +1912,7 @@ test("shows guests the course structure but never delivers lesson content", asyn
   await page.getByRole("button", { name: "Sign in to your account" }).click();
   await expect(page).toHaveURL(/\/course\/Systems%20thinking\/lesson\/0-0\?id=public-preview$/);
   await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
-    .getByRole("button", { name: "Sign in with email code" })).toBeVisible();
+    .getByRole("button", { name: "Continue with Google" })).toBeVisible();
   expect(lessonRequests).toBe(0);
 });
 

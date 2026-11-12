@@ -56,9 +56,7 @@ async function guestRoutes(page: Page) {
     recentAuthentication: false,
     authentication: {
       primaryProvider: "google",
-      externalIdAvailable: false,
-      externalIdNewAccountsAvailable: false,
-      legacyGoogleAvailable: true,
+      googleAvailable: true,
     },
     user: null,
   } }));
@@ -71,9 +69,7 @@ async function signedRoutes(page: Page, canCreate: boolean) {
     recentAuthentication: false,
     authentication: {
       primaryProvider: "google",
-      externalIdAvailable: false,
-      externalIdNewAccountsAvailable: false,
-      legacyGoogleAvailable: true,
+      googleAvailable: true,
     },
     user: {
       uid: "acceptance-learner",
