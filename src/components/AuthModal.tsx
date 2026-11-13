@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { accountEntryMode } from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import FilosageMark from "@/components/FilosageMark";
 import GoogleMark from "@/components/GoogleMark";
@@ -28,7 +29,7 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
   const redirectingRef = useRef(false);
   const primaryProvider = authentication.primaryProvider;
   const primaryAvailable = primaryProvider === "google" && authentication.googleAvailable;
-  const createsAccount = primaryAvailable;
+  const createsAccount = accountEntryMode(authentication) === "create";
   const identityCopy = primaryAvailable
     ? "Continue with Google on the next secure screen"
     : "Secure sign-in is temporarily unavailable";
@@ -75,7 +76,7 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
   };
 
   const handleSecureContinue = () => beginRedirect(
-    () => signInWithRedirect(returnPath),
+    () => signInWithRedirect(returnPath, { signupAcceptance: createsAccount }),
     "Secure sign-in could not be started. Your learning data has not changed. Please try again.",
   );
 

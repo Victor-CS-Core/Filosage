@@ -23,9 +23,13 @@ test("keeps public discovery, lesson starts, and sign-up intent as distinct even
   expect(authModal).toContain('"EXP-001-professional-outcome"');
 });
 
-test("routes the landing account action through the existing legal-aware modal", () => {
+test("routes direct Google sign-in through the existing-account modal and post-auth legal gate", () => {
   expect(source("src/components/marketing/AccountStartButton.tsx")).toContain("AccountEntryButton");
-  expect(source("src/components/AccountEntryButton.tsx")).toContain('new CustomEvent("filosage:open-auth",');
+  const accountEntry = source("src/components/AccountEntryButton.tsx");
+  expect(accountEntry).toContain('new CustomEvent("filosage:open-auth",');
+  expect(accountEntry).toContain('if (authentication.googleAvailable) return "sign-in";');
   expect(source("src/components/AppShell.tsx")).toContain('window.addEventListener("filosage:open-auth", openAuth)');
-  expect(source("src/components/AuthModal.tsx")).toContain("I confirm I am at least 13");
+  expect(source("src/components/AuthModal.tsx")).toContain("signupAcceptance: createsAccount");
+  expect(source("src/components/AuthProvider.tsx")).toContain("if (options.signupAcceptance)");
+  expect(source("src/components/AppShell.tsx")).toContain("<LegalConsentModal />");
 });

@@ -52,7 +52,10 @@ interface AuthContextValue {
   error: string | null;
   clearError: () => void;
   signIn: () => Promise<FilosageUser>;
-  signInWithRedirect: (postLoginPath?: string) => Promise<void>;
+  signInWithRedirect: (
+    postLoginPath?: string,
+    options?: { signupAcceptance?: boolean },
+  ) => Promise<void>;
   reauthenticate: (postLoginPath?: string) => Promise<FilosageUser>;
   acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: FilosageUser) => Promise<void>;
   signOut: () => Promise<void>;
@@ -424,14 +427,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authentication, commitUser, loadAccount]);
 
-  const signInWithRedirect = useCallback(async (postLoginPath?: string) => {
+  const signInWithRedirect = useCallback(async (
+    postLoginPath?: string,
+    options: { signupAcceptance?: boolean } = {},
+  ) => {
     setError(null);
-    if (!isManagedAuthConfigured) {
+    if (!isManagedAuthConfigured && !managedProviderAvailable(authentication)) {
       if (localAuthAvailable) {
         const localUser = localOwnerUser();
         localStorage.setItem(LOCAL_SESSION_KEY, "1");
         const active = commitUser(localUser);
-        await persistLegalAcceptance(localUser, "signup");
+        if (options.signupAcceptance) await persistLegalAcceptance(localUser, "signup");
         await loadAccount(active).catch(() => undefined);
         if (postLoginPath) window.location.assign(safeAuthenticationReturnPath(postLoginPath));
         return;
@@ -445,15 +451,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("The selected managed provider is unavailable.");
     }
     try {
-      sessionStorage.setItem(
-        PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY,
-        JSON.stringify(pendingManagedRedirectAcceptance()),
-      );
+      if (options.signupAcceptance) {
+        sessionStorage.setItem(
+          PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY,
+          JSON.stringify(pendingManagedRedirectAcceptance()),
+        );
+      }
       await beginManagedSignIn(
         postLoginPath ?? `${window.location.pathname}${window.location.search}`,
       );
     } catch (redirectError) {
-      sessionStorage.removeItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
+      if (options.signupAcceptance) sessionStorage.removeItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
       setError(authErrorMessage(redirectError));
       throw redirectError;
     }

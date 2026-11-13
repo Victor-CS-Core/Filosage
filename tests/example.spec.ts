@@ -921,13 +921,12 @@ test("lets guests browse outlines while clearly gating lessons behind an account
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("browse published topics and inspect every course outline without an account");
+  await expect(dialog).toContainText("browse every published course outline without signing in");
   await expect(dialog).toContainText("Continue with Google on the next secure screen");
-  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
   await expect(dialog.locator(".auth-identity .auth-google-icon")).toBeVisible();
   await expect(dialog.locator('input[type="email"]')).toHaveCount(0);
-  await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
-  await expect(dialog.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacy");
+  await expect(dialog.getByRole("checkbox")).toHaveCount(0);
 
   await dialog.getByRole("button", { name: "Close sign-in dialog" }).focus();
   await page.keyboard.press("Shift+Tab");
@@ -935,8 +934,6 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "Close sign-in dialog" })).toBeFocused();
 
-  await dialog.getByRole("checkbox").check();
-  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
   await expect(dialog).toContainText("Google handles sign-in securely. Filosage never sees your password.");
 
   if (testInfo.project.name === "chromium" || testInfo.project.name === "mobile-chromium") {
