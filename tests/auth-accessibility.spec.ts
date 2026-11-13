@@ -209,13 +209,12 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
     json: { featuredCourseId: featuredCourse.id, courses: [featuredCourse] },
   }));
   await page.goto("/");
-  const trigger = page.locator(".marketing-course-proof").getByRole("button", { name: "Create an account to start" });
+  const trigger = page.locator(".marketing-course-proof").getByRole("button", { name: "Sign in to start" });
   await trigger.click();
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
-  const legalConfirmation = dialog.getByRole("checkbox");
-  await legalConfirmation.check();
+  await expect(dialog.getByRole("checkbox")).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
   await expectWcagClean(page);
   await expectFocusContained(page, dialog, sequentialFocus);
@@ -239,7 +238,7 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
   await expect(dialog.locator(".auth-identity .auth-google-icon")).toBeVisible();
   await expectWcagClean(page);
 
-  await expectMobileHardening(page, dialog, dialog.locator(".legal-check span"));
+  await expectMobileHardening(page, dialog, dialog.locator(".auth-copy"));
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
