@@ -38,9 +38,15 @@ test("covers course creation, learning plans, and professional evidence sharing"
 });
 
 test("documents the current sign-in, Today, profile, and private-course discovery behavior", () => {
+  const manifest = JSON.parse(readFileSync("docs/support/wiki-feature-map.json", "utf8")) as {
+    features: Array<{ feature: string; sources: string[] }>;
+  };
+  const authentication = manifest.features.find((entry) => entry.feature === "Authentication");
   const signInHelp = articleBody("sign-in-help");
   const gettingStarted = articleBody("getting-started");
   const signInSummary = supportArticles.find((article) => article.slug === "sign-in-help")?.summary;
+  expect(authentication?.sources).toContain("src/app/api/auth/google/");
+  expect(authentication?.sources).not.toContain("src/app/auth/complete-link/");
   expect(signInSummary).toBe("Use secure Google sign-in and troubleshoot account or network problems.");
   expect(signInHelp).toContain("Select **Continue with Google** in Filosage");
   expect(signInHelp).toContain("Never send a password or verification code");

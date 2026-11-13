@@ -1,5 +1,9 @@
 # Filosage current state
 
+## November 13: exact-source CI follow-up in progress
+
+The Cloudflare-only checkpoint `30ed3e41326321ac34f5b5c791ddbd8b6cadb10a` is pushed on `main`. Its offline security workflow passed, while engineering run `43315410839` failed in `check:support-wiki`: the feature map still required the deleted External ID completion route. The map now uses the direct Google route source and a focused regression prevents reintroduction. Local support-wiki validation passes for all 19 articles and the focused Chromium assertion passes 1/1; a new exact-source remote run remains pending. No deployment, migration, secret change, provider call, billing activation, or Spark activation occurred.
+
 ## November 12: Cloudflare-only architecture cleanup complete
 
 The active runtime, build, CI, release, authentication, and operator surfaces now use Cloudflare Workers, D1, R2, Workers Logs, and direct Google OAuth. Azure deployment workflows and infrastructure, the PostgreSQL adapter and integration lane, Easy Auth compatibility, Microsoft External ID configuration, direct PostgreSQL operational writes, Azure/PostgreSQL package dependencies, and obsolete release tooling have been removed. Historical release records remain historical evidence and are not current procedures.
