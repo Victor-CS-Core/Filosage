@@ -1,8 +1,12 @@
 # Filosage current state
 
-## November 13: exact-source CI follow-up in progress
+## November 13: Spark staging qualification resumed
 
-The Cloudflare-only checkpoint `30ed3e41326321ac34f5b5c791ddbd8b6cadb10a` is pushed on `main`. Its offline security workflow passed, while engineering run `43315410839` failed in `check:support-wiki`: the feature map still required the deleted External ID completion route. The map now uses the direct Google route source and a focused regression prevents reintroduction. Local support-wiki validation passes for all 19 articles and the focused Chromium assertion passes 1/1; a new exact-source remote run remains pending. No deployment, migration, secret change, provider call, billing activation, or Spark activation occurred.
+Support-map correction `174b2fed16af00b639dcb710002059dbeb54843f` is committed, pushed, and synchronized on `main`. Exact-source engineering run `43442095211` passes static/release contracts, Chromium smoke, and Worker bundle smoke; offline security run `43442095326` passes. Manually dispatched full-browser run `43443849475` is bound to the same SHA and remains in progress. Local exact-source OpenNext build generates 94 routes, Worker smoke passes 4/4, and the Worker SHA-256 is `d05223bf4d44c84108a102ab62aa3bc9c5568f0c3ac2064c37be5cc65c64bc45`.
+
+The owner explicitly approved an additive staging D1 migration and staging deployment with all Spark flags initially off, followed by the documented provider evaluation capped at 16 calls and 50,000 microUSD. The owner also confirmed qualified legal/privacy approval for the intended launch markets and Cloudflare/OpenAI data terms. This does not authorize production deployment, billing activation, or production Spark flags.
+
+Read-only staging inventory confirms Wrangler access, zero existing `spark_*` schema objects, separate D1 `6805f7f9-610a-4699-9253-65bdfc88de40`, and the required OpenAI/auth/activity secret names. The October 16 staging Worker is healthy and ready but reports no source version, so it is only a baseline. A follow-up now requires `infra/cloudflare/deploy-opennext.py` to receive a full `SITE_VERSION`, reject a checkout mismatch, and bind the SHA through both OAuth and REST deployments. Its focused tests pass 4/4, the complete unit group passes 26 Node / 4 Python / 15 operations-receiver tests, and an actual Wrangler dry run preserves all configured staging vars while adding `SITE_VERSION`. The follow-up is not yet committed or remotely validated. No staging migration, deployment, provider call, secret change, billing activation, or production change has occurred.
 
 ## November 12: Cloudflare-only architecture cleanup complete
 

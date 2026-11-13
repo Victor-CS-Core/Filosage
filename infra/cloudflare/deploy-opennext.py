@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Deploy the FiloSage OpenNext worker to Cloudflare via the REST API.
 
-Usage: deploy-opennext.py [--env staging|production] [--message TEXT]
+Usage: deploy-opennext.py [--env staging|production] [--message TEXT] --site-version FULL_SHA
 
 Replicates `wrangler deploy [--env ...]` for the OpenNext build output:
   1. builds the Workers Static Assets manifest for .open-next/assets
@@ -18,6 +18,7 @@ import base64
 import json
 import mimetypes
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -163,14 +164,14 @@ def current_secret_names(script):
         raise
 
 
-def load_worker_config(env_name):
+def load_worker_config(env_name, site_version):
     with open(os.path.join(REPO, "wrangler.jsonc")) as f:
         root = json.load(f)
     env = root if env_name == "production" else root.get("env", {}).get(env_name, {})
     if env_name != "production" and not env:
         raise RuntimeError(f"wrangler config missing environment: {env_name}")
     return {
-        "vars": env.get("vars", root.get("vars", {})),
+        "vars": {**env.get("vars", root.get("vars", {})), "SITE_VERSION": site_version},
         "assets": env.get("assets", root.get("assets", {})),
         "compatibility_date": env.get("compatibility_date", root.get("compatibility_date")),
         "compatibility_flags": env.get("compatibility_flags", root.get("compatibility_flags", [])),
@@ -194,7 +195,7 @@ def build_worker_bundle(env_name):
             return f.read()
 
 
-def deploy_with_wrangler(env_name, message):
+def deploy_with_wrangler(env_name, message, site_version):
     wrangler = os.path.join(REPO, "node_modules", ".bin", "wrangler")
     command = [
         wrangler,
@@ -204,6 +205,8 @@ def deploy_with_wrangler(env_name, message):
         os.path.join(REPO, "wrangler.jsonc"),
         "--message",
         message,
+        "--var",
+        f"SITE_VERSION:{site_version}",
     ]
     if env_name != "production":
         command.extend(["--env", env_name])
@@ -211,7 +214,9 @@ def deploy_with_wrangler(env_name, message):
     print("DEPLOY_OK wrangler-oauth")
 
 
-def deploy(env_name, message):
+def deploy(env_name, message, site_version):
+    if not re.fullmatch(r"[a-f0-9]{40}", site_version):
+        raise RuntimeError("SITE_VERSION must be a full lowercase Git commit SHA")
     cfg = ENVS[env_name]
     script = cfg["script"]
     worker_js = os.path.join(REPO, ".open-next", "worker.js")
@@ -222,10 +227,10 @@ def deploy(env_name, message):
         raise RuntimeError(f"asset dir missing: {asset_dir}")
 
     if add_surrogate_to_request is None:
-        deploy_with_wrangler(env_name, message)
+        deploy_with_wrangler(env_name, message, site_version)
         return
 
-    worker_config = load_worker_config(env_name)
+    worker_config = load_worker_config(env_name, site_version)
     worker_src = build_worker_bundle(env_name)
     print(f"wrangler worker bundle: {len(worker_src)} bytes")
     assets_jwt = sync_assets(script, asset_dir)
@@ -308,6 +313,7 @@ def main():
     env_name = "staging"
     message = "filosage opennext deploy"
     args = sys.argv[1:]
+    site_version = os.environ.get("SITE_VERSION", "").strip()
     if "--env" in args:
         env_name = args[args.index("--env") + 1]
     for a in args:
@@ -315,13 +321,31 @@ def main():
             env_name = a.split("=", 1)[1]
     if "--message" in args:
         message = args[args.index("--message") + 1]
+    if "--site-version" in args:
+        site_version = args[args.index("--site-version") + 1]
+    for a in args:
+        if a.startswith("--site-version="):
+            site_version = a.split("=", 1)[1]
     if env_name not in ENVS:
         print(f"unknown env: {env_name}", file=sys.stderr)
+        return 2
+    if not re.fullmatch(r"[a-f0-9]{40}", site_version):
+        print("--site-version must be a full lowercase Git commit SHA", file=sys.stderr)
+        return 2
+    source_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if site_version != source_sha:
+        print(f"site version {site_version} does not match checked-out source {source_sha}", file=sys.stderr)
         return 2
     if env_name == "production":
         print("production deploys need explicit user approval; refusing", file=sys.stderr)
         return 3
-    deploy(env_name, message)
+    deploy(env_name, message, site_version)
     return 0
 
 
