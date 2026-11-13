@@ -203,6 +203,7 @@ def deploy_with_wrangler(env_name, message, site_version):
         "--autoconfig=false",
         "--config",
         os.path.join(REPO, "wrangler.jsonc"),
+        "--keep-vars",
         "--message",
         message,
         "--var",

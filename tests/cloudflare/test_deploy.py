@@ -47,6 +47,7 @@ class DeploymentLoggingTests(unittest.TestCase):
         def inspect_command(command, **kwargs):
             self.assertIn("--autoconfig=false", command)
             self.assertNotIn("--x-autoconfig=false", command)
+            self.assertIn("--keep-vars", command)
             self.assertEqual(command[command.index("--var") + 1], f"SITE_VERSION:{FIXTURE_SHA}")
             config_path = Path(command[command.index("--config") + 1])
             config = json.loads(config_path.read_text())
