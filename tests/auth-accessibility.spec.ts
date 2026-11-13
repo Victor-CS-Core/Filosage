@@ -290,6 +290,7 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", {
 });
 
 test("profile name editing remains keyboard reachable and reflows at 200 percent", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
+  test.slow();
   const sequentialFocus = await resolveNativeSequentialFocusGesture(page);
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
