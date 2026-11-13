@@ -14,6 +14,7 @@ Auth uses the stored `custom.cloudflare` connector via authd surrogates when
 available, or an existing Wrangler OAuth session as a local fallback.
 Staging deploys do NOT need user approval. Production deploys DO.
 """
+import argparse
 import base64
 import json
 import mimetypes
@@ -154,14 +155,9 @@ def sync_assets(script, asset_dir):
 
 
 def current_secret_names(script):
-    try:
-        result = api_request("GET", f"/client/v4/accounts/{ACCOUNT_ID}/workers/scripts/{script}/secrets")
-        items = result if isinstance(result, list) else result.get("result", [])
-        return [s["name"] for s in items if isinstance(s, dict) and s.get("name")]
-    except RuntimeError as e:
-        if "404" in str(e) or "not found" in str(e).lower():
-            return []
-        raise
+    result = api_request("GET", f"/client/v4/accounts/{ACCOUNT_ID}/workers/scripts/{script}/secrets")
+    items = result if isinstance(result, list) else result.get("result", [])
+    return [s["name"] for s in items if isinstance(s, dict) and s.get("name")]
 
 
 def load_worker_config(env_name, site_version):
@@ -170,13 +166,30 @@ def load_worker_config(env_name, site_version):
     env = root if env_name == "production" else root.get("env", {}).get(env_name, {})
     if env_name != "production" and not env:
         raise RuntimeError(f"wrangler config missing environment: {env_name}")
+    assets = env.get("assets", root.get("assets", {}))
+    observability = env.get("observability", root.get("observability", {}))
+    logs = observability.get("logs", {})
+    if not assets.get("binding"):
+        raise RuntimeError(f"wrangler config missing assets binding for {env_name}")
+    if not observability.get("enabled") or not logs.get("enabled") or not logs.get("invocation_logs") or not logs.get("persist"):
+        raise RuntimeError(f"wrangler config must persist invocation logs for {env_name}")
     return {
         "vars": {**env.get("vars", root.get("vars", {})), "SITE_VERSION": site_version},
-        "assets": env.get("assets", root.get("assets", {})),
+        "assets": assets,
         "compatibility_date": env.get("compatibility_date", root.get("compatibility_date")),
         "compatibility_flags": env.get("compatibility_flags", root.get("compatibility_flags", [])),
-        "observability": env.get("observability", root.get("observability", {})),
+        "observability": observability,
     }
+
+
+def current_source_sha():
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
 
 
 def build_worker_bundle(env_name):
@@ -218,6 +231,11 @@ def deploy_with_wrangler(env_name, message, site_version):
 def deploy(env_name, message, site_version):
     if not re.fullmatch(r"[a-f0-9]{40}", site_version):
         raise RuntimeError("SITE_VERSION must be a full lowercase Git commit SHA")
+    source_sha = current_source_sha()
+    if site_version != source_sha:
+        raise RuntimeError(f"site version {site_version} does not match checked-out source {source_sha}")
+    if env_name == "production":
+        raise RuntimeError("production deploys need explicit user approval; refusing")
     cfg = ENVS[env_name]
     script = cfg["script"]
     worker_js = os.path.join(REPO, ".open-next", "worker.js")
@@ -311,42 +329,19 @@ def deploy(env_name, message, site_version):
 
 
 def main():
-    env_name = "staging"
-    message = "filosage opennext deploy"
-    args = sys.argv[1:]
-    site_version = os.environ.get("SITE_VERSION", "").strip()
-    if "--env" in args:
-        env_name = args[args.index("--env") + 1]
-    for a in args:
-        if a.startswith("--env="):
-            env_name = a.split("=", 1)[1]
-    if "--message" in args:
-        message = args[args.index("--message") + 1]
-    if "--site-version" in args:
-        site_version = args[args.index("--site-version") + 1]
-    for a in args:
-        if a.startswith("--site-version="):
-            site_version = a.split("=", 1)[1]
-    if env_name not in ENVS:
-        print(f"unknown env: {env_name}", file=sys.stderr)
-        return 2
-    if not re.fullmatch(r"[a-f0-9]{40}", site_version):
-        print("--site-version must be a full lowercase Git commit SHA", file=sys.stderr)
-        return 2
-    source_sha = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=REPO,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    if site_version != source_sha:
-        print(f"site version {site_version} does not match checked-out source {source_sha}", file=sys.stderr)
-        return 2
-    if env_name == "production":
+    parser = argparse.ArgumentParser(description="Deploy the exact FiloSage OpenNext source to Cloudflare.")
+    parser.add_argument("--env", choices=tuple(ENVS), default="staging")
+    parser.add_argument("--message", default="filosage opennext deploy")
+    parser.add_argument("--site-version", required=True)
+    args = parser.parse_args()
+    if args.env == "production":
         print("production deploys need explicit user approval; refusing", file=sys.stderr)
         return 3
-    deploy(env_name, message, site_version)
+    try:
+        deploy(args.env, args.message, args.site_version)
+    except RuntimeError as error:
+        print(str(error), file=sys.stderr)
+        return 2
     return 0
 
 

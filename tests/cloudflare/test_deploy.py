@@ -3,7 +3,6 @@ import importlib.util
 import io
 import json
 import sys
-from types import SimpleNamespace
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path
@@ -20,16 +19,27 @@ FIXTURE_SHA = "1" * 40
 
 
 class DeploymentLoggingTests(unittest.TestCase):
-    def test_cli_rejects_site_version_that_does_not_match_source(self):
+    def test_deploy_rejects_site_version_that_does_not_match_source(self):
         different_sha = "2" * 40
-        with (
-            patch.object(sys, "argv", ["deploy-opennext.py", "--site-version", different_sha]),
-            patch.object(deploy.subprocess, "run", return_value=SimpleNamespace(stdout=f"{FIXTURE_SHA}\n")),
-            patch.object(deploy, "deploy") as deploy_call,
-            contextlib.redirect_stderr(io.StringIO()),
-        ):
-            self.assertEqual(deploy.main(), 2)
-        deploy_call.assert_not_called()
+        with patch.object(deploy, "current_source_sha", return_value=FIXTURE_SHA):
+            with self.assertRaisesRegex(RuntimeError, "does not match checked-out source"):
+                deploy.deploy("staging", "fixture", different_sha)
+
+    def test_cli_reports_missing_argument_values(self):
+        with patch.object(sys, "argv", ["deploy-opennext.py", "--site-version"]), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                deploy.main()
+        self.assertEqual(raised.exception.code, 2)
+
+    def test_direct_deploy_refuses_production(self):
+        with patch.object(deploy, "current_source_sha", return_value=FIXTURE_SHA):
+            with self.assertRaisesRegex(RuntimeError, "production deploys need explicit user approval"):
+                deploy.deploy("production", "fixture", FIXTURE_SHA)
+
+    def test_secret_inventory_errors_abort(self):
+        with patch.object(deploy, "api_request", side_effect=RuntimeError("Cloudflare API 404")):
+            with self.assertRaisesRegex(RuntimeError, "Cloudflare API 404"):
+                deploy.current_secret_names("filosage-staging")
 
     def test_both_wrangler_environments_persist_invocations(self):
         config = json.loads((ROOT / "wrangler.jsonc").read_text())
@@ -67,7 +77,7 @@ class DeploymentLoggingTests(unittest.TestCase):
                 with patch.object(deploy, "REPO", str(ROOT)):
                     return original(name, message, site_version)
 
-            with patch.object(deploy, "REPO", directory), patch.object(deploy, "add_surrogate_to_request", None), patch.object(deploy, "deploy_with_wrangler", side_effect=run_wrangler), patch.object(deploy.subprocess, "run", side_effect=inspect_command), contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(deploy, "REPO", directory), patch.object(deploy, "current_source_sha", return_value=FIXTURE_SHA), patch.object(deploy, "add_surrogate_to_request", None), patch.object(deploy, "deploy_with_wrangler", side_effect=run_wrangler), patch.object(deploy.subprocess, "run", side_effect=inspect_command), contextlib.redirect_stdout(io.StringIO()):
                 deploy.deploy("staging", "fixture", FIXTURE_SHA)
 
     def test_rest_settings_use_the_same_environment_configuration(self):
@@ -86,7 +96,7 @@ class DeploymentLoggingTests(unittest.TestCase):
                 requests.append((method, path, body, headers))
                 return {"id": "fixture-version"}
 
-            with patch.object(deploy, "REPO", directory), patch.object(deploy, "add_surrogate_to_request", object()), patch.object(deploy, "build_worker_bundle", return_value=b"worker"), patch.object(deploy, "sync_assets", return_value="fixture-assets"), patch.object(deploy, "current_secret_names", return_value=["FIXTURE_SECRET"]), patch.object(deploy, "api_request", side_effect=api), contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(deploy, "REPO", directory), patch.object(deploy, "current_source_sha", return_value=FIXTURE_SHA), patch.object(deploy, "add_surrogate_to_request", object()), patch.object(deploy, "build_worker_bundle", return_value=b"worker"), patch.object(deploy, "sync_assets", return_value="fixture-assets"), patch.object(deploy, "current_secret_names", return_value=["FIXTURE_SECRET"]), patch.object(deploy, "api_request", side_effect=api), contextlib.redirect_stdout(io.StringIO()):
                 deploy.deploy("staging", "fixture", FIXTURE_SHA)
             method, path, body, headers = next(r for r in requests if "/versions" in r[1])
             self.assertEqual(method, "POST")
