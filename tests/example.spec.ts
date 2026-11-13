@@ -760,7 +760,7 @@ test("describes guest access and Pro publishing consistently across public pages
   } finally {
     releaseSession();
   }
-  await expect(pricing.getByRole("button", { name: "Create a free account", exact: true })).toBeEnabled();
+  await expect(pricing.getByRole("button", { name: "Sign in to your account", exact: true })).toBeEnabled();
   await pricing.close();
 
   const create = await context.newPage();
