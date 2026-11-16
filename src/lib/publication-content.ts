@@ -40,6 +40,27 @@ export function publicationContentFingerprint(value: unknown) {
   return JSON.stringify(stablePublicationValue(value));
 }
 
+function withoutSeparatelyModeratedMedia(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const document = { ...value as Record<string, unknown> };
+  delete document.banner;
+  delete document.illustration;
+  if (!Array.isArray(document.modules)) return document;
+  return {
+    ...document,
+    modules: document.modules.map((module) => {
+      if (!module || typeof module !== "object" || Array.isArray(module)) return module;
+      const content = { ...module as Record<string, unknown> };
+      delete content.illustration;
+      return content;
+    }),
+  };
+}
+
+export function generationSafetyContentFingerprint(value: unknown) {
+  return publicationContentFingerprint(withoutSeparatelyModeratedMedia(value));
+}
+
 export function publicationCandidateContentFingerprint(
   course: unknown,
   lessons: unknown[],
@@ -55,6 +76,12 @@ export function publicationCandidateContentFingerprint(
 
 export async function publicationContentHash(value: unknown) {
   const bytes = new TextEncoder().encode(publicationContentFingerprint(value));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function generationSafetyContentHash(value: unknown) {
+  const bytes = new TextEncoder().encode(generationSafetyContentFingerprint(value));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

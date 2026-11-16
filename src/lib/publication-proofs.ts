@@ -3,7 +3,7 @@ import { COURSE_QUALITY_GATE_VERSION } from "@/lib/course-quality";
 import { LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { COURSE_PIPELINE_VERSIONS, type ValidationReport } from "@/lib/course-pipeline/contract";
 import { COURSE_REVIEW_POLICY_VERSION } from "@/lib/course-pipeline/review-policy";
-import { publicationContentFingerprint, publicationContentHash } from "@/lib/publication-content";
+import { generationSafetyContentHash, publicationContentFingerprint } from "@/lib/publication-content";
 import type { PublicationResearchProof } from "@/lib/publication-research";
 
 // Bump the safety version when output moderation or local safety policy changes.
@@ -25,10 +25,10 @@ export interface GenerationSafetyProof {
   moderationModel: "omni-moderation-latest";
 }
 
-/** Call only after successful output moderation, on the FINAL stored payload. */
+/** Call after output moderation on the final generated content. Generated media is moderated separately by its provider. */
 export async function createGenerationSafetyProof(document: unknown, scope: "course" | `lesson:${string}`): Promise<GenerationSafetyProof> {
   return {
-    version: 1, scope, contentHash: await publicationContentHash(document),
+    version: 1, scope, contentHash: await generationSafetyContentHash(document),
     policyVersion: PUBLICATION_SAFETY_POLICY_VERSION, status: "passed",
     basis: "generation-output-moderation", moderationModel: "omni-moderation-latest",
   };
@@ -38,7 +38,7 @@ export async function generationSafetyProofStatus(document: Record<string, unkno
   const proof = document.generationSafetyProof as GenerationSafetyProof | undefined;
   if (proof === undefined || proof === null) return "missing" as const;
   return proof.version === 1 && proof.scope === scope
-    && proof.contentHash === await publicationContentHash(document)
+    && proof.contentHash === await generationSafetyContentHash(document)
     && proof.policyVersion === PUBLICATION_SAFETY_POLICY_VERSION
     && proof.status === "passed" && proof.basis === "generation-output-moderation"
     && proof.moderationModel === "omni-moderation-latest"

@@ -5,9 +5,10 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { getStoredDocument, putStoredDocument, publishCourseWithReview } from "../../src/lib/document-store.ts";
 import { buildPublicationValidationProof } from "../../src/lib/publication-review.ts";
-import { createGenerationSafetyProof, publicationProofToken, publicationProofApprovalFingerprint, PUBLICATION_PROOF_POLICY_VERSION } from "../../src/lib/publication-proofs.ts";
+import { createGenerationSafetyProof, generationSafetyProofStatus, publicationProofToken, publicationProofApprovalFingerprint, PUBLICATION_PROOF_POLICY_VERSION } from "../../src/lib/publication-proofs.ts";
 import type { Course } from "../../src/lib/course-types.ts";
 import { publicationDecisionFromReport } from "../../src/lib/course-pipeline/validation.ts";
+import { publicationContentFingerprint } from "../../src/lib/publication-content.ts";
 
 import { captureAccountGeneration, runWithAccountGeneration } from "../../src/lib/account-lifecycle.ts";
 function test(name: string, work: () => Promise<void>) {
@@ -19,6 +20,21 @@ process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 after(() => rmSync(directory, { recursive: true, force: true }));
 import { buildGeneratedCoursePublication } from "../../src/lib/publication-review.ts";
 import { certifyResearchSourcesV5, SOURCE_RESEARCH_POLICY_VERSION } from "../../src/lib/source-research.ts";
+
+test("separately moderated course media preserves safety evidence but changes the publication snapshot", async () => {
+  const course = { topic: "Evidence", modules: [{ title: "Observation", lessons: [{ title: "Signals" }] }] };
+  const generationSafetyProof = await createGenerationSafetyProof(course, "course");
+  const generated = { ...course, generationSafetyProof };
+  const publicationFingerprint = publicationContentFingerprint(generated);
+  const illustrated = {
+    ...generated,
+    banner: { assetId: "banner-fixture", version: 1 },
+    modules: [{ ...generated.modules[0], illustration: { assetId: "module-fixture", version: 1, kind: "module" } }],
+  };
+  assert.equal(await generationSafetyProofStatus(illustrated, "course"), "passed");
+  assert.notEqual(publicationContentFingerprint(illustrated), publicationFingerprint);
+  assert.equal(await generationSafetyProofStatus({ ...illustrated, topic: "Changed evidence" }, "course"), "invalid");
+});
 
 async function researchBoundCandidate() {
   const value = candidate();

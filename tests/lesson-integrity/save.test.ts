@@ -7,6 +7,7 @@ import * as store from "../../src/lib/document-store.ts";
 import { captureAccountGeneration, runWithAccountGeneration } from "../../src/lib/account-lifecycle.ts";
 import { reserveAiUsage, finalizeAiUsage } from "../../src/lib/ai-usage.ts";
 import { publicationContentFingerprint } from "../../src/lib/publication-content.ts";
+import { createGenerationSafetyProof, generationSafetyProofStatus } from "../../src/lib/publication-proofs.ts";
 import { lessonCourseFingerprint, lessonPublicationState } from "../../src/lib/course-pipeline/lesson-save.ts";
 import type { ServerAccount } from "../../src/lib/account-server.ts";
 const directory = mkdtempSync(join(tmpdir(), "lesson-integrity-"));
@@ -57,6 +58,23 @@ test("lesson and successful result receipt commit together before usage finaliza
   await f.owned(() => finalizeAiUsage(f.reservation, { failed: true }));
   assert.equal((await store.getStoredDocument(f.reservation.requestPath))?.status, "completed");
   assert.equal((await store.getStoredDocument(f.reservation.periodPath))?.requestCount, 1);
+});
+test("attaching a provider-moderated illustration preserves the lesson safety proof", async () => {
+  const f = await fixture();
+  const lesson: Record<string, unknown> = { ...f.data };
+  lesson.generationSafetyProof = await createGenerationSafetyProof(lesson, "lesson:0-0");
+  await f.owned(() => store.saveLesson(f.id, "0-0", lesson, f.guard));
+  const saved = (await store.getLesson(f.id, "0-0"))!;
+  const publicationFingerprint = publicationContentFingerprint(saved);
+  assert.equal(await generationSafetyProofStatus(saved, "lesson:0-0"), "passed");
+  await f.owned(() => store.setLessonIllustration(f.id, "0-0", {
+    assetId: "illustration-fixture",
+    version: 1,
+    kind: "lesson",
+  }));
+  const illustrated = (await store.getLesson(f.id, "0-0"))!;
+  assert.equal(await generationSafetyProofStatus(illustrated, "lesson:0-0"), "passed");
+  assert.notEqual(publicationContentFingerprint(illustrated), publicationFingerprint);
 });
 test("independent lesson reservations share budgets without serializing their resource locks", async () => {
   const f = await fixture();
