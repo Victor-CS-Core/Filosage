@@ -527,7 +527,11 @@ test("grounded persistence requires complete research and citation provenance", 
     researchPolicyVersion: "source-research-v1.0.0",
   })).toBe(true);
   const claim = source.evidenceClaims?.[0];
-  const lesson = { content: claim?.claim ?? "", quizzes: [] };
+  const draftLesson = { content: claim?.claim ?? "", quizzes: [{ question: "What does the evidence support?" }] };
+  const lesson = {
+    ...draftLesson,
+    quizzes: [{ ...draftLesson.quizzes[0], id: "retrieval-objective-a-lesson-0-0-0", objectiveIds: ["objective-a"] }],
+  };
   const citationBase = [{
     id: "citation-1",
     sourceId: source.id,
@@ -535,7 +539,9 @@ test("grounded persistence requires complete research and citation provenance", 
     claim: claim?.claim ?? "",
     section: "content",
   }];
+  const preEnrichmentFingerprint = lessonGroundingFingerprint(citationBase, [source], draftLesson);
   const supportFingerprint = lessonGroundingFingerprint(citationBase, [source], lesson);
+  expect(supportFingerprint).not.toBe(preEnrichmentFingerprint);
   const groundedLesson = {
     ...lesson,
     claimSupportEvaluatorStatus: "executed",
@@ -548,6 +554,15 @@ test("grounded persistence requires complete research and citation provenance", 
     supportEvaluatorVersion: LESSON_GROUNDING_EVALUATOR_VERSION,
     supportFingerprint,
   }], [source], groundedLesson)).toEqual([]);
+  expect(automaticCitationGroundingIssues([{
+    ...citationBase[0],
+    supportStatus: "supported",
+    supportEvaluatorVersion: LESSON_GROUNDING_EVALUATOR_VERSION,
+    supportFingerprint: preEnrichmentFingerprint,
+  }], [source], {
+    ...groundedLesson,
+    claimSupportFingerprint: preEnrichmentFingerprint,
+  })[0]).toContain("lacks a current automatic claim-support verdict");
   expect(automaticCitationGroundingIssues([{
     ...citationBase[0],
     supportStatus: "supported",

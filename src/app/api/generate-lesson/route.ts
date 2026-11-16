@@ -765,15 +765,6 @@ async function handlePOST(request: Request) {
         publicationStatus: source.publicationStatus,
         statusCheck: source.statusCheck,
       }));
-    const normalizedFinalCitations = normalizedCitations();
-    const claimSupportFingerprint = groundedSourcePolicy
-      ? lessonGroundingFingerprint(
-          normalizedFinalCitations,
-          assignedSources,
-          lesson as unknown as Record<string, unknown>,
-        )
-      : undefined;
-    const groundingByCitationId = new Map((groundingResult?.assessments ?? []).map((assessment) => [assessment.citationId, assessment]));
     const citations = generatedCitations.map((citation, index) => ({
       id: `citation-${index + 1}`,
       sourceId: citation.sourceId,
@@ -782,12 +773,6 @@ async function handlePOST(request: Request) {
       section: citation.section,
       locator: citation.locator ?? undefined,
       objectiveIds: [objectiveId],
-      ...(groundedSourcePolicy && groundingByCitationId.get(`citation-${index + 1}`)?.verdict === "supported" ? {
-        supportStatus: "supported" as const,
-        supportEvaluatorVersion: LESSON_GROUNDING_EVALUATOR_VERSION,
-        supportFingerprint: claimSupportFingerprint,
-        supportedAt: groundingObservedAt,
-      } : {}),
     }));
     const generationMetadata = {
       generatedAt: resultObservedAt,
@@ -810,7 +795,6 @@ async function handlePOST(request: Request) {
       contentBasis,
       claimSupportEvaluatorVersion: LESSON_GROUNDING_EVALUATOR_VERSION,
       claimSupportEvaluatorStatus: groundedSourcePolicy ? "executed" : layeredSourcePolicy ? "not_applicable" : "not_executed",
-      claimSupportFingerprint: groundedSourcePolicy ? claimSupportFingerprint : undefined,
       sourceReferences,
       citations,
     };
@@ -858,6 +842,24 @@ async function handlePOST(request: Request) {
       fallbackUsed: usageSamples.length > 1 || activeProfile.id !== standardProfile.id,
       ...generationMetadata,
     };
+    if (groundedSourcePolicy) {
+      const claimSupportFingerprint = lessonGroundingFingerprint(
+        normalizedCitations(),
+        assignedSources,
+        lessonData,
+      );
+      const groundingByCitationId = new Map((groundingResult?.assessments ?? []).map((assessment) => [assessment.citationId, assessment]));
+      lessonData.claimSupportFingerprint = claimSupportFingerprint;
+      lessonData.citations = citations.map((citation) => ({
+        ...citation,
+        ...(groundingByCitationId.get(citation.id)?.verdict === "supported" ? {
+          supportStatus: "supported" as const,
+          supportEvaluatorVersion: LESSON_GROUNDING_EVALUATOR_VERSION,
+          supportFingerprint: claimSupportFingerprint,
+          supportedAt: groundingObservedAt,
+        } : {}),
+      }));
+    }
     // Moderate the exact final payload after all content, IDs and provenance
     // are assembled. Local fixtures never attest a remote safety decision.
     await assertSafeContent(client, JSON.stringify(lessonData), { uid: account.uid, feature: "lesson_generation", stage: "output" });

@@ -1094,6 +1094,17 @@ test("V2 provenance fails closed when its generation or publication path is paus
   expect(overrideRoute).toContain("COURSE_PUBLICATION_V2_PAUSED");
 });
 
+test("lesson claim-support evidence binds after deterministic payload enrichment", async () => {
+  const lessonRoute = await readFile("src/app/api/generate-lesson/route.ts", "utf8");
+  const lessonAssembly = lessonRoute.indexOf("const lessonData: Record<string, unknown> = {");
+  const claimSupportAttestation = lessonRoute.indexOf("const claimSupportFingerprint = lessonGroundingFingerprint(", lessonAssembly);
+  const finalModeration = lessonRoute.indexOf("await assertSafeContent(client, JSON.stringify(lessonData)", lessonAssembly);
+
+  expect(lessonAssembly).toBeGreaterThan(-1);
+  expect(claimSupportAttestation).toBeGreaterThan(lessonAssembly);
+  expect(finalModeration).toBeGreaterThan(claimSupportAttestation);
+});
+
 test("legacy review remains available while V2 artifacts use actor-scoped active paths", async () => {
   const [validationRoute, lessonRoute, publishRoute, overrideRoute, publicationReview, repairRoute, manualReviewRoute] = await Promise.all([
     readFile("src/app/api/courses/[courseId]/validation/route.ts", "utf8"),
