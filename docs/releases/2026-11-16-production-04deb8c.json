@@ -1,0 +1,96 @@
+{
+  "verifiedAt": "2026-11-16T19:24:11Z",
+  "candidate": {
+    "sourceSha": "04deb8cdbac79528abadb9c867b78e6c4996b8f7",
+    "originMainMatched": true,
+    "worktreeClean": true,
+    "workerSha256": "d05223bf4d44c84108a102ab62aa3bc9c5568f0c3ac2064c37be5cc65c64bc45",
+    "workerSmokePassed": 4,
+    "productionDependencyVulnerabilities": 0
+  },
+  "hostedGates": {
+    "engineeringRun": 43495162627,
+    "engineeringConclusion": "success",
+    "securityRun": 43495168646,
+    "securityConclusion": "success",
+    "fullBrowserRun": 43495175112,
+    "fullBrowserConclusion": "success"
+  },
+  "predecessor": {
+    "sourceSha": "65ab93219628dcc598d15d44bf15dc6348f758f5",
+    "workerVersionId": "78653d77-6107-4b5f-a80b-feabae06f0d5",
+    "trafficPercent": 100
+  },
+  "backup": {
+    "timeTravelBookmark": "0000006d-00000000-00005125-36e1fc549af69b84645900430b771398",
+    "exportFile": "release-evidence/production-pre-04deb8c-20261116.sql",
+    "exportMode": "0600",
+    "exportBytes": 1577736,
+    "exportSha256": "712cb2a76ea4bd873ac3f685b656609a92c98339ae6d7c4388ae4fd89d728bc6",
+    "restoreRehearsed": false
+  },
+  "migration": {
+    "file": "infra/cloudflare/d1/002_spark_budget.sql",
+    "sha256": "29483e244bc7d72fa13363552bb8d9a2a0354feb092dc6ad57db0d0a378b9e91",
+    "tables": 4,
+    "indexes": 3,
+    "triggers": 8,
+    "sparkRowsAfterMigration": 0,
+    "applicationDocumentsBefore": 243,
+    "applicationDocumentsAfter": 243,
+    "migrationBookmark": "0000006e-0000000a-00005125-60660f2b28e79b35ceed10df6d267e14"
+  },
+  "deployment": {
+    "workerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
+    "trafficPercent": 100,
+    "apexHealth": "ok",
+    "directWorkerHealth": "ok",
+    "ready": true,
+    "reportedSourceSha": "04deb8cdbac79528abadb9c867b78e6c4996b8f7",
+    "authenticationMode": "direct-google",
+    "configurationHealthy": true,
+    "datastoreHealthy": true,
+    "secretBindingCount": 7,
+    "requiredSecretsPreserved": true,
+    "postDeployBookmark": "0000006e-0000000c-00005125-c84036740e84dc786798199edfff5caa"
+  },
+  "closures": {
+    "billingEnabled": false,
+    "billingRolloutMode": "closed",
+    "stripeTaxReady": false,
+    "sparkEnabled": false,
+    "sparkPublicEnabled": false,
+    "sparkLiveAiEnabled": false,
+    "sparkPrepareEnabled": false,
+    "sparkSemanticRetrievalEnabled": false,
+    "sparkLedgerRows": 0
+  },
+  "authenticatedAcceptance": {
+    "privateCourseCreated": true,
+    "courseTopic": "Market trading for beginners",
+    "moduleCount": 3,
+    "plannedLessonCount": 6,
+    "courseOperationStatus": "completed",
+    "courseOperationStage": "Course ready",
+    "courseTerminalReason": "course_committed",
+    "firstLessonId": "0-0",
+    "firstLessonTitle": "From Market Idea to Observable Rule",
+    "lessonRendered": true,
+    "lessonOperationStatus": "completed",
+    "lessonOperationStage": "Lesson ready",
+    "lessonTerminalReason": "lesson_committed",
+    "lessonPendingCalls": 0
+  },
+  "rollback": {
+    "workerVersionId": "78653d77-6107-4b5f-a80b-feabae06f0d5",
+    "strategy": "Roll back Worker version and retain the additive Spark schema with all Spark flags false."
+  },
+  "remainingGates": [
+    "Explicit approval to activate production Spark flags",
+    "Seed only the reviewed bounded Spark budget",
+    "Run at most 16 Spark provider calls and 50000 microUSD",
+    "Complete second-account private-course and session isolation acceptance",
+    "Complete hosted export, deletion, stale-version, downgrade, and kill-switch acceptance",
+    "Exercise backup restore against an isolated non-production destination"
+  ]
+}
