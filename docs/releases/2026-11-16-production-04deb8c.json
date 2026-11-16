@@ -157,8 +157,8 @@
     "ownerSessionRestored": true
   },
   "publicationFollowUp": {
-    "status": "local_qualified_hosted_pending",
-    "sourceSha": "fa6c3624770371b0c69234ca1d9432e7f36dcafa",
+    "status": "production_deployed_acceptance_in_progress",
+    "sourceSha": "419f4c9b9c97ec008896571faa866aa75c9cafb8",
     "publicationFixCommit": "0fdf5a8113f9d348c703aa127f5fbc8aa7172e70",
     "cause": "Separately provider-moderated Tier B/C media was attached after generation-output moderation and invalidated the original publication-content safety hash.",
     "implementation": "Use a dedicated generation-safety hash that excludes only separately moderated banner and illustration references while retaining them in immutable publication fingerprints.",
@@ -173,17 +173,40 @@
     "nextBuildPassed": true,
     "openNextBuildPassed": true,
     "workerSmokePassed": 4,
-    "serverHandlerSha256": "85a79f96de84dbc2f51f3e058cef0f038c81391b0d7c83df228b887279eba4ab"
+    "serverHandlerSha256": "85a79f96de84dbc2f51f3e058cef0f038c81391b0d7c83df228b887279eba4ab",
+    "engineeringRun": 43951522850,
+    "securityRun": 43951522749,
+    "fullBrowserRun": 43952328788,
+    "stagingWorkerVersionId": "90b98a8c-a2a7-498a-bfd2-fab83c85aa65",
+    "productionWorkerVersionId": "86963b5c-2b6e-409c-adc1-54fec61e5f5c",
+    "productionReportedSourceSha": "419f4c9b9c97ec008896571faa866aa75c9cafb8",
+    "ownerCourseListingPassed": true,
+    "accountExportPassed": true,
+    "sparkHistoryPassedWhileDisabled": true
+  },
+  "claimSupportFollowUp": {
+    "status": "local_qualified_hosted_pending",
+    "implementationCommit": "0c235d2b825431b0305072204c7e8b3c53bc6e2f",
+    "cause": "Source-backed lesson evidence was fingerprinted before deterministic quiz IDs, objective links, and transfer criteria were added to the persisted payload.",
+    "implementation": "Mint claim-support evidence from the fully assembled lesson immediately before final moderation and atomic save.",
+    "publicationContractsPassed": 48,
+    "sourceResearchTestsPassed": 33,
+    "lessonIntegrityTestsPassed": 23,
+    "lessonOperationTestsPassed": 11,
+    "lintErrors": 0,
+    "nextBuildPassed": true,
+    "affectedProductionLessonIds": ["0-0", "0-1", "1-1"],
+    "publicationAttempted": false
   },
   "rollback": {
     "workerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
     "strategy": "Roll back to the exact-source flags-off base Worker and retain the additive Spark schema and canary evidence."
   },
   "remainingGates": [
-    "Complete exact-source engineering, security, and full-browser qualification for the combined D1 equality and publication correction",
-    "Deploy the exact combined candidate through staging and production with Spark and billing closed",
-    "Complete one validated idempotent course publication and anonymous release acceptance",
-    "Complete hosted export, deletion, and downgrade acceptance",
+    "Complete exact-source engineering, security, and full-browser qualification for the final-payload grounding correction",
+    "Deploy the exact grounding candidate through staging and production with Spark and billing closed",
+    "Regenerate the three affected source-backed lessons and complete one validated idempotent course publication and anonymous release acceptance",
+    "Complete hosted deletion and downgrade acceptance",
     "Exercise backup restore against an isolated non-production destination"
   ]
 }
