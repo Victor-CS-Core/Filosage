@@ -173,9 +173,9 @@ function queryParts(query: StructuredQuery, countOnly = false) {
     const path = jsonPath(field);
     const expected = fromDocumentValue(filter.fieldFilter?.value ?? { nullValue: null });
     if (operation === "EQUAL") {
-      // Compare as JSON for type-correct equality (numbers vs strings).
-      clauses.push(`json_extract(data, '${path}') = json(?)`);
-      parameters.push(JSON.stringify(expected));
+      const serializedExpected = JSON.stringify(expected);
+      clauses.push(`json_type(data, '${path}') = json_type(?, '$') AND json_extract(data, '${path}') IS json_extract(?, '$')`);
+      parameters.push(serializedExpected, serializedExpected);
     } else if (operation === "GREATER_THAN_OR_EQUAL") {
       clauses.push(`json_extract(data, '${path}') >= cast(? as text)`);
       parameters.push(String(expected ?? ""));

@@ -166,6 +166,7 @@ test("D1 document store runs structured queries with filters and ordering", asyn
           fields: {
             title: { stringValue: title },
             level: { integerValue: String(level) },
+            marker: id === "c2" ? { nullValue: null } : { stringValue: id },
           },
         }),
       }, false);
@@ -199,6 +200,50 @@ test("D1 document store runs structured queries with filters and ordering", asyn
     assert.equal(filtered?.length, 2);
     assert.ok(filtered?.[0]?.document.name.endsWith("courses/c2"));
     assert.ok(filtered?.[1]?.document.name.endsWith("courses/c3"));
+
+    const exact = await d1DocumentStoreJson<{ document: { name: string } }[]>(
+      "/documents:runQuery",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: "courses" }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: "title" },
+                op: "EQUAL",
+                value: { stringValue: "Beta" },
+              },
+            },
+            limit: 10,
+          },
+        }),
+      },
+    );
+    assert.equal(exact?.length, 1);
+    assert.ok(exact?.[0]?.document.name.endsWith("courses/c2"));
+
+    const nullValue = await d1DocumentStoreJson<{ document: { name: string } }[]>(
+      "/documents:runQuery",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: "courses" }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: "marker" },
+                op: "EQUAL",
+                value: { nullValue: null },
+              },
+            },
+            limit: 10,
+          },
+        }),
+      },
+    );
+    assert.equal(nullValue?.length, 1);
+    assert.ok(nullValue?.[0]?.document.name.endsWith("courses/c2"));
   } finally {
     await fixture.close();
   }

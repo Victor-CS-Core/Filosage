@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-11-16T19:24:11Z",
+  "verifiedAt": "2026-11-16T19:51:43Z",
   "candidate": {
     "sourceSha": "04deb8cdbac79528abadb9c867b78e6c4996b8f7",
     "originMainMatched": true,
@@ -41,7 +41,8 @@
     "migrationBookmark": "0000006e-0000000a-00005125-60660f2b28e79b35ceed10df6d267e14"
   },
   "deployment": {
-    "workerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
+    "workerVersionId": "51a6fa9e-1e80-444b-a024-35a834f02054",
+    "baseWorkerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
     "trafficPercent": 100,
     "apexHealth": "ok",
     "directWorkerHealth": "ok",
@@ -63,7 +64,13 @@
     "sparkLiveAiEnabled": false,
     "sparkPrepareEnabled": false,
     "sparkSemanticRetrievalEnabled": false,
-    "sparkLedgerRows": 0
+    "sparkBudgetMode": "practice_only",
+    "sparkOperatorLiveAiEnabled": false,
+    "sparkOperatorPreparationEnabled": false,
+    "sparkUsageRows": 3,
+    "sparkCommittedMicrousd": 2109,
+    "sparkReservedMicrousd": 0,
+    "sparkUnknownMicrousd": 0
   },
   "authenticatedAcceptance": {
     "privateCourseCreated": true,
@@ -81,16 +88,59 @@
     "lessonTerminalReason": "lesson_committed",
     "lessonPendingCalls": 0
   },
+  "privateSparkCanary": {
+    "approvedMaximumCalls": 16,
+    "approvedMaximumMicrousd": 50000,
+    "deterministicWorkerVersionId": "7633e0ff-20af-4104-8746-0128f381987b",
+    "liveWorkerVersionId": "84d6d02c-12ba-4893-ad65-cb47fa6cc660",
+    "publicUiEnabled": false,
+    "semanticRetrievalEnabled": false,
+    "globalConcurrency": 1,
+    "providerCalls": 3,
+    "tutoringCalls": 2,
+    "assessmentCalls": 1,
+    "committedMicrousd": 2109,
+    "inputTokens": 3207,
+    "cachedInputTokens": 0,
+    "outputTokens": 515,
+    "reservedMicrousd": 0,
+    "unknownMicrousd": 0,
+    "deterministicGradingPassed": true,
+    "assessmentOutcome": "demonstrated",
+    "assessmentCriteriaMet": 4,
+    "tutoringReplayAddedCost": false,
+    "assessmentReplayAddedCost": false,
+    "staleLessonStatus": 409,
+    "staleLessonCode": "SPARK_STALE_LESSON",
+    "operatorKillSwitchPassed": true,
+    "runtimeShutdownPassed": true,
+    "retrievedSourceCounts": [0, 0],
+    "groundingFinding": "Both safe and correct tutoring responses truthfully remained ai_general_knowledge because D1 field equality returned no stored chunks."
+  },
+  "followUpFix": {
+    "status": "locally_validated_not_deployed",
+    "cause": "Cloudflare D1 string EQUAL filters compare an extracted scalar with a JSON-text value and return no matches.",
+    "implementation": "Compare json_type and scalar json_extract values, using IS so explicit null equality is supported.",
+    "d1TestsPassed": 13,
+    "sparkTestsPassed": 34,
+    "lintPassed": true,
+    "productionFieldQueryProof": {
+      "storedChunks": 1,
+      "storedTurns": 2,
+      "oldChunkMatches": 0,
+      "oldTurnMatches": 0,
+      "correctedChunkMatches": 1,
+      "correctedTurnMatches": 2
+    }
+  },
   "rollback": {
-    "workerVersionId": "78653d77-6107-4b5f-a80b-feabae06f0d5",
-    "strategy": "Roll back Worker version and retain the additive Spark schema with all Spark flags false."
+    "workerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
+    "strategy": "Roll back to the exact-source flags-off base Worker and retain the additive Spark schema and canary evidence."
   },
   "remainingGates": [
-    "Explicit approval to activate production Spark flags",
-    "Seed only the reviewed bounded Spark budget",
-    "Run at most 16 Spark provider calls and 50000 microUSD",
+    "Qualify and deploy the D1 equality correction from an exact committed source",
     "Complete second-account private-course and session isolation acceptance",
-    "Complete hosted export, deletion, stale-version, downgrade, and kill-switch acceptance",
+    "Complete hosted export, deletion, and downgrade acceptance",
     "Exercise backup restore against an isolated non-production destination"
   ]
 }
