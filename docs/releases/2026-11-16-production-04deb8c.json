@@ -118,12 +118,26 @@
     "groundingFinding": "Both safe and correct tutoring responses truthfully remained ai_general_knowledge because D1 field equality returned no stored chunks."
   },
   "followUpFix": {
-    "status": "locally_validated_not_deployed",
+    "status": "staging_verified_production_pending",
+    "sourceSha": "6b04180d18fc273945a9de92c5523743aa2ac337",
     "cause": "Cloudflare D1 string EQUAL filters compare an extracted scalar with a JSON-text value and return no matches.",
     "implementation": "Compare json_type and scalar json_extract values, using IS so explicit null equality is supported.",
     "d1TestsPassed": 13,
     "sparkTestsPassed": 34,
     "lintPassed": true,
+    "engineeringRun": 43944417781,
+    "engineeringConclusion": "success",
+    "securityRun": 43944417691,
+    "securityConclusion": "success",
+    "fullBrowserRun": 43946095765,
+    "fullBrowserConclusion": "in_progress",
+    "workerSmokePassed": 4,
+    "productionDependencyVulnerabilities": 0,
+    "serverHandlerSha256": "88b772c957d03bf973e4fdc70b1636a339e1022482a99beffb5fc74e7a53bfac",
+    "deployableBundleSha256": "6d2a9c6dc269590be88e42867f5b4967d57acd4f60bf7f769b05260c932480eb",
+    "stagingWorkerVersionId": "33ba6804-8921-4748-a8ed-3d3a2ecf68bb",
+    "stagingHealth": "ok",
+    "stagingReportedSourceSha": "6b04180d18fc273945a9de92c5523743aa2ac337",
     "productionFieldQueryProof": {
       "storedChunks": 1,
       "storedTurns": 2,
@@ -133,13 +147,42 @@
       "correctedTurnMatches": 2
     }
   },
+  "twoAccountIsolation": {
+    "completed": true,
+    "ownerControlStatus": 403,
+    "privateCourseStatus": 403,
+    "privateSparkSessionStatus": 403,
+    "privateSparkSessionCode": "SPARK_SESSION_FORBIDDEN",
+    "recordIdentityDisclosed": false,
+    "ownerSessionRestored": true
+  },
+  "publicationFollowUp": {
+    "status": "local_qualified_hosted_pending",
+    "sourceSha": "fa6c3624770371b0c69234ca1d9432e7f36dcafa",
+    "publicationFixCommit": "0fdf5a8113f9d348c703aa127f5fbc8aa7172e70",
+    "cause": "Separately provider-moderated Tier B/C media was attached after generation-output moderation and invalidated the original publication-content safety hash.",
+    "implementation": "Use a dedicated generation-safety hash that excludes only separately moderated banner and illustration references while retaining them in immutable publication fingerprints.",
+    "nextVersion": "16.4.6",
+    "lessonIntegrityTestsPassed": 23,
+    "lessonOperationTestsPassed": 11,
+    "publicationContractsPassed": 48,
+    "d1TestsPassed": 13,
+    "sparkTestsPassed": 34,
+    "lintErrors": 0,
+    "productionDependencyVulnerabilities": 0,
+    "nextBuildPassed": true,
+    "openNextBuildPassed": true,
+    "workerSmokePassed": 4,
+    "serverHandlerSha256": "85a79f96de84dbc2f51f3e058cef0f038c81391b0d7c83df228b887279eba4ab"
+  },
   "rollback": {
     "workerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
     "strategy": "Roll back to the exact-source flags-off base Worker and retain the additive Spark schema and canary evidence."
   },
   "remainingGates": [
-    "Qualify and deploy the D1 equality correction from an exact committed source",
-    "Complete second-account private-course and session isolation acceptance",
+    "Complete exact-source engineering, security, and full-browser qualification for the combined D1 equality and publication correction",
+    "Deploy the exact combined candidate through staging and production with Spark and billing closed",
+    "Complete one validated idempotent course publication and anonymous release acceptance",
     "Complete hosted export, deletion, and downgrade acceptance",
     "Exercise backup restore against an isolated non-production destination"
   ]
