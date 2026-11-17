@@ -248,9 +248,20 @@
       "lintErrors": 0,
       "existingLintWarnings": 4
     },
-    "hostedEngineering": "pending",
-    "hostedSecurity": "pending",
-    "hostedFullBrowser": "pending",
+    "hostedEngineering": "first run failed all-dependencies audit on dev-only GHSA-fc5q-39xc-vjpf; narrow exact-advisory exception approved by owner and added to quality gate; fresh run pending",
+    "hostedEngineeringRun": 44162665523,
+    "hostedSecurity": "passed",
+    "hostedSecurityRun": 44162665962,
+    "hostedFullBrowser": "in_progress on pre-exception candidate; fresh exact-SHA run required",
+    "hostedFullBrowserRun": 44162665758,
+    "devAuditException": {
+      "advisory": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "scope": "dev-only lint/build dependency chain",
+      "upstreamPatchAvailable": false,
+      "ownerApproved": true,
+      "productionDependencyAuditPassed": true
+    },
     "stagingWorkerVersionId": null,
     "productionWorkerVersionId": null,
     "acceptanceResume": "blocked until hosted gates, deployments, and a safe retry decision for failed 0-1 operation"

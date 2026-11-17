@@ -656,8 +656,10 @@ test("CI cost controls preserve automatic quality and exact manual release proof
   for (const command of ["npm ci", "npm run lint", "npm run build", "npm run test:billing"]) {
     expect(qualityWorkflow).toContain(`- run: ${command}\n        if: steps.scope.outputs.full == 'true'`);
   }
-  // npm audit --audit-level=high uses a Python filter for the braces exception (see workflow comments)
+  // npm audit --audit-level=high uses a narrow Python allowlist for documented dev-only advisories.
   expect(qualityWorkflow).toContain("npm audit --audit-level=high --json");
+  expect(qualityWorkflow).toContain("GHSA-vfj7-8cjw-p6xm");
+  expect(qualityWorkflow).toContain("GHSA-fc5q-39xc-vjpf");
   expect(qualityWorkflow).toContain("- run: npm run check:secrets\n      - run: npm run check:support-wiki\n");
 
 

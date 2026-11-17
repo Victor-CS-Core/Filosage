@@ -73,25 +73,30 @@ jobs:
         if: steps.scope.outputs.full == 'true'
       - run: npm audit --omit=dev --audit-level=high
         if: steps.scope.outputs.full == 'true'
-      # GHSA-vfj7-8cjw-p6xm (braces): dev-only DoS in file-globbing, all versions
-      # flagged, fix requires downgrading Next.js. Accepted risk; not exploitable
-      # in CI/production. Fails on any OTHER high+ advisory.
+      # Narrow exceptions for dev-only GHSA-vfj7-8cjw-p6xm (braces; no compatible
+      # fix) and GHSA-fc5q-39xc-vjpf (picomatch; npm has no patched release).
+      # The separate production-only audit above remains mandatory.
       - run: |
           npm audit --audit-level=high --json | python3 -c "
           import json,sys
           d=json.load(sys.stdin)
           vulns=d.get('vulnerabilities',{})
-          def is_braces_chain(k, seen=None):
-              seen=seen or set()
+          allowed={'GHSA-vfj7-8cjw-p6xm','GHSA-fc5q-39xc-vjpf'}
+          def is_allowlisted_chain(k, seen=None):
+              seen=set(seen or ())
               if k in seen: return False
               seen.add(k)
               v=vulns.get(k,{})
+              if v.get('severity') not in ('high','critical'): return True
               via=v.get('via',[])
+              if not via: return False
               for x in via:
-                  if isinstance(x,dict) and 'GHSA-vfj7-8cjw-p6xm' in x.get('url',''): return True
-                  if isinstance(x,str) and is_braces_chain(x, seen): return True
-              return False
-          bad=[k for k,v in vulns.items() if v.get('severity') in ('high','critical') and not is_braces_chain(k)]
+                  if isinstance(x,dict):
+                      if x.get('severity') in ('high','critical') and not any(a in x.get('url','') for a in allowed): return False
+                  elif isinstance(x,str) and not is_allowlisted_chain(x, seen):
+                      return False
+              return True
+          bad=[k for k,v in vulns.items() if v.get('severity') in ('high','critical') and not is_allowlisted_chain(k)]
           sys.exit(1 if bad else 0)
           "
         if: steps.scope.outputs.full == 'true'
