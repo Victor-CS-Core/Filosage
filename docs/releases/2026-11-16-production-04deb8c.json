@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-11-16T19:51:43Z",
+  "verifiedAt": "2026-11-17T20:53:14Z",
   "candidate": {
     "sourceSha": "04deb8cdbac79528abadb9c867b78e6c4996b8f7",
     "originMainMatched": true,
@@ -227,14 +227,15 @@
     "lesson11Attempted": false,
     "validationReviewReplayAnonymousAcceptance": "not performed",
     "followUpBranch": "fix/lesson-illustration-async-1102",
-    "followUpStatus": "reserved; asynchronous Tier C implementation and new hosted gates required",
+    "followUpStatus": "implemented, qualified, and deployed; acceptance remains blocked by repeated 1-1 Error 1102; see asynchronousIllustrationFollowUp",
     "affectedProductionLessonIds": ["0-0", "0-1", "1-1"],
     "publicationAttempted": false
   },
   "asynchronousIllustrationFollowUp": {
-    "status": "local_qualified_hosted_gates_pending",
+    "status": "production_deployed_acceptance_blocked_1102",
     "branch": "fix/lesson-illustration-async-1102",
     "basedOn": "664f77f92683d5a979ce7dc8099e535714ffcd28",
+    "sourceSha": "1692c16843a8f0cc7489fc2542f17d9fd98231cc",
     "change": "Move optional Pro lesson illustration generation to a separately authenticated endpoint triggered after lesson load; conditionally attach only if lesson content has not changed.",
     "causeFinding": "The original 0-1 503 cause is not proven. Durable evidence shows the failed operation's only pending call was the Course generation-labeled moderation request; its receipt contains omni-moderation-latest, zero recorded cost, and no saved moderation response. No lesson-generation response was committed.",
     "localEvidence": {
@@ -248,12 +249,49 @@
       "lintErrors": 0,
       "existingLintWarnings": 4
     },
-    "hostedEngineering": "first run failed all-dependencies audit on dev-only GHSA-fc5q-39xc-vjpf; narrow exact-advisory exception approved by owner and added to quality gate; fresh run pending",
-    "hostedEngineeringRun": 44162665523,
-    "hostedSecurity": "passed",
-    "hostedSecurityRun": 44162665962,
-    "hostedFullBrowser": "in_progress on pre-exception candidate; fresh exact-SHA run required",
-    "hostedFullBrowserRun": 44162665758,
+    "hostedGates": {
+      "engineeringRun": 44164345446,
+      "engineeringConclusion": "success",
+      "securityRun": 44164345151,
+      "securityConclusion": "success",
+      "fullBrowserRun": 44164363648,
+      "fullBrowserConclusion": "success",
+      "sourceSha": "1692c16843a8f0cc7489fc2542f17d9fd98231cc"
+    },
+    "workerBundleSha256": "d05223bf4d44c84108a102ab62aa3bc9c5568f0c3ac2064c37be5cc65c64bc45",
+    "deployments": {
+      "stagingWorkerVersionId": "f11989a2-8f4a-406d-b51c-91567980ca96",
+      "productionWorkerVersionId": "3bcf5acb-211d-412d-8e16-84656d4d6566",
+      "previousProductionWorkerVersionId": "cabd84e4-db05-4f3d-b1d0-99227de32393",
+      "productionReportedSourceSha": "1692c16843a8f0cc7489fc2542f17d9fd98231cc",
+      "stagingHealthAndReadiness": "healthy",
+      "productionApexAndDirectWorkerHealthAndReadiness": "healthy",
+      "authenticationMode": "direct-google",
+      "datastoreHealthy": true,
+      "publicationV2": true,
+      "requiredProductionSecretNamesPresent": [
+        "ACTIVITY_RECEIPT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "IDENTITY_LINK_HMAC_SECRET",
+        "OPENAI_API_KEY",
+        "OPERATIONS_ALERT_WEBHOOK_SECRET",
+        "OWNER_EMAIL"
+      ],
+      "secretValuesRead": false,
+      "sparkFlags": {
+        "SPARK_ENABLED": false,
+        "NEXT_PUBLIC_SPARK_ENABLED": false,
+        "SPARK_LIVE_AI_ENABLED": false,
+        "SPARK_PREPARE_ENABLED": false,
+        "SPARK_SEMANTIC_RETRIEVAL_ENABLED": false
+      },
+      "billing": {
+        "BILLING_ENABLED": false,
+        "BILLING_ROLLOUT_MODE": "closed",
+        "STRIPE_TAX_READY": false
+      }
+    },
     "devAuditException": {
       "advisory": "GHSA-fc5q-39xc-vjpf",
       "package": "picomatch",
@@ -262,17 +300,78 @@
       "ownerApproved": true,
       "productionDependencyAuditPassed": true
     },
-    "stagingWorkerVersionId": null,
-    "productionWorkerVersionId": null,
-    "acceptanceResume": "blocked until hosted gates, deployments, and a safe retry decision for failed 0-1 operation"
+    "acceptance": {
+      "courseId": "439d26d48a8b1044a97274d8912575c36efe5c20226217d56daddec2233bf1e2",
+      "courseIsPublic": false,
+      "lesson00": {
+        "idempotencyKey": "publication-acceptance-664f77f-arithmetic-0-0-v2",
+        "operationId": "8f44c30f1700ca6ce9c9b192cb2a59f3edc65d4695c84eb1f5b7fccf2bf6c1d7",
+        "status": "completed",
+        "terminalReason": "lesson_committed",
+        "pendingCalls": 0,
+        "replayHttpStatus": 409,
+        "replayCode": "IDEMPOTENCY_RESULT_SUPERSEDED",
+        "replayFinding": "The committed result no longer matches the current lesson/course fingerprint; newer work was preserved and no replacement key was created."
+      },
+      "lesson01PriorAttempt": {
+        "idempotencyKey": "publication-acceptance-664f77f-arithmetic-0-1-v2",
+        "operationId": "a406c3a555c33b1f4e0268592c349853d373b5ba24ac5d0b7487059fef6424cb",
+        "status": "failed",
+        "terminalReason": "provider_outcome_unknown",
+        "pendingCalls": 1,
+        "providerStage": "Course generation",
+        "providerProfile": "moderation.standard",
+        "providerModel": "omni-moderation-latest",
+        "actualCostMicros": 0,
+        "uncertainCostMicros": 0,
+        "savedResponse": false,
+        "lessonOutputCommitted": false
+      },
+      "lesson01Retry": {
+        "idempotencyKey": "publication-acceptance-664f77f-arithmetic-0-1-v3",
+        "operationId": "6e48bb0939cb2282f0d45e2bdbeb932ea8a61f14f9449c47d85cc09afc5e3bd6",
+        "status": "completed",
+        "terminalReason": "lesson_committed",
+        "pendingCalls": 0,
+        "completedProviderStages": 7,
+        "actualCostMicros": 134452,
+        "uncertainCostMicros": 0
+      },
+      "lesson11": {
+        "idempotencyKey": "publication-acceptance-664f77f-arithmetic-1-1-v2",
+        "operationId": "214a509fda33051de70e08dd38505168e3cf4ca67efe658162463d1ceb89082a",
+        "status": "running",
+        "stage": "Course generation",
+        "pendingCallId": "c54367247cce00d1f7dab86f4dc548de966096c5f6b4b4633766aad618a0f784",
+        "pendingProviderStageStatus": "in_flight",
+        "savedResponse": false,
+        "resultId": null,
+        "completedPriorProviderStages": 6,
+        "actualCostMicros": 134631,
+        "uncertainCostMicros": 0,
+        "leaseUntil": "2026-11-17T20:50:20.082Z",
+        "resumeAndStatusRequests": "Repeated requests after the lease expired returned Cloudflare HTTP 503 Error 1102; operation was not manually edited or cleared.",
+        "cloudflareRayIds": [
+          "a5c19d285d5ac0ce-MIA",
+          "a5c19d4dbdc8c0ce-MIA"
+        ]
+      },
+      "validation": "not performed because 1-1 is uncommitted",
+      "manualReview": "not performed",
+      "publicationAttempted": false,
+      "publicationReplayAttempted": false,
+      "anonymousCourseAndLibraryAcceptance": "not performed"
+    },
+    "residual1102Finding": "The repeated 1102 occurred on the 1-1 moderation/status-reconciliation path after optional image work was moved out of synchronous completion. Health remained healthy; the image-related cause is not established, and the follow-up did not complete acceptance.",
+    "acceptanceResume": "blocked; preserve the in-flight 1-1 operation and do not start a new key, validate, or publish until the provider outcome is safely reconciled"
   },
   "rollback": {
     "workerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
     "strategy": "Roll back to the exact-source flags-off base Worker and retain the additive Spark schema and canary evidence."
   },
   "remainingGates": [
-    "Implement and qualify a separate candidate moving optional Tier C illustration work out of synchronous lesson completion; investigate the 1102 and unknown provider outcome",
-    "Safely resolve the failed 0-1 operation and complete the remaining source-backed lesson regeneration, validated idempotent publication, replay, and anonymous release acceptance without overriding blockers",
+    "Safely reconcile the unresolved 1-1 moderation outcome and diagnose the repeated Cloudflare 1102 without mutating durable operation evidence",
+    "After safe recovery, complete required lesson regeneration, ensure CQ_SOURCE_005 is gone, perform manual review if required, and complete idempotent publication/replay plus anonymous course/library acceptance without overriding blockers",
     "Complete hosted deletion and downgrade acceptance",
     "Exercise backup restore against an isolated non-production destination"
   ]

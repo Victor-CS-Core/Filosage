@@ -1,12 +1,18 @@
 # Filosage current state
 
-## November 17: asynchronous Tier C illustration follow-up
+## November 17: asynchronous Tier C illustration follow-up deployed; publication stopped
 
-Follow-up candidate is on branch `fix/lesson-illustration-async-1102` at the November 16 deployment base. Pro lesson generation no longer awaits optional per-lesson image generation. The lesson page requests decorative imagery separately after an existing or newly generated lesson loads; the new authenticated endpoint checks course ownership and Pro entitlement, uses the existing per-course budget/deduplication, and attaches only if the lesson content fingerprint still matches. This does not establish that image generation caused the earlier production 503.
+Follow-up candidate `1692c16843a8f0cc7489fc2542f17d9fd98231cc` on `fix/lesson-illustration-async-1102` moves optional Pro lesson illustrations out of synchronous lesson generation. The authenticated endpoint retains ownership/Pro checks, existing budgets and deduplication, and only attaches art if the lesson fingerprint is unchanged. The change does not establish that images caused the earlier 503.
 
-Local checks pass: lesson integrity 24/24 (including stale-image rejection), lesson operations 11/11, illustration/tier contracts 18/18, Next build, Cloudflare build/Worker smoke 4/4, production dependency audit (0), lint (0 errors, four existing warnings), and `git diff --check`. Hosted security passed; full-browser is running. Engineering otherwise passed but failed the all-dependencies audit on new dev-only GHSA-fc5q-39xc-vjpf; the owner approved a narrow exception because npm has no patch. The quality-gate allowlist was updated to require exact advisory-chain matching while retaining the production-only audit; this new gate change needs fresh exact-SHA engineering and full-browser runs before staging/production deployment.
+Exact-SHA hosted security `44164345151`, engineering `44164345446`, and full-browser `44164363648` passed. The Cloudflare build and Worker smoke passed; bundle SHA-256 is `d05223bf4d44c84108a102ab62aa3bc9c5568f0c3ac2064c37be5cc65c64bc45`. The same bundle deployed to staging Worker `f11989a2-8f4a-406d-b51c-91567980ca96` and production Worker `3bcf5acb-211d-412d-8e16-84656d4d6566`. Staging readiness and cache-busted production apex/direct-Worker health and readiness report this exact source, healthy D1, direct Google authentication, and publication V2. Seven production secret names remain present; values were not exposed. Billing is disabled/closed/tax-not-ready and every Spark flag is false.
 
-The prior production `0-1` operation remains failed as `provider_outcome_unknown`; it has one in-flight stage/call and no saved response. The corresponding usage receipt reports only `omni-moderation-latest`, zero cost, and moderation profile metadata. Do not edit the durable record or replay that operation as if it were completed. Resume acceptance only after the owner-approved retry strategy is safe and the new deployment passes hosted gates.
+Acceptance course `439d26d48a8b1044a97274d8912575c36efe5c20226217d56daddec2233bf1e2` remains private:
+
+- Lesson `0-0`, operation `8f44c30f1700ca6ce9c9b192cb2a59f3edc65d4695c84eb1f5b7fccf2bf6c1d7`, is durably `completed` / `lesson_committed` with zero pending calls. Replaying its prescribed key returned `409 IDEMPOTENCY_RESULT_SUPERSEDED` because the current lesson/course fingerprint no longer matches that committed result; no replacement key was created.
+- The prescribed `0-1-v2` operation `a406c3a555c33b1f4e0268592c349853d373b5ba24ac5d0b7487059fef6424cb` remains failed with one unresolved, zero-cost moderation call and no lesson output. After confirming that durable state, retry key `publication-acceptance-664f77f-arithmetic-0-1-v3` completed as operation `6e48bb0939cb2282f0d45e2bdbeb932ea8a61f14f9449c47d85cc09afc5e3bd6`, `lesson_committed`, zero pending calls; seven provider stages were checkpointed and recorded cost was 134,452 microUSD.
+- Lesson `1-1`, prescribed key `publication-acceptance-664f77f-arithmetic-1-1-v2`, has operation `214a509fda33051de70e08dd38505168e3cf4ca67efe658162463d1ceb89082a`. Its final moderation call remains in flight with no saved response or lesson commit; six earlier provider stages are checkpointed. The receipt recorded 134,631 microUSD actual cost and zero uncertain cost at last inspection. After lease expiry, repeated operation resume/status requests returned Cloudflare `503 Error 1102` (including Ray IDs `a5c19d285d5ac0ce-MIA` and `a5c19d4dbdc8c0ce-MIA`); the health endpoint remained healthy. The durable operation was not edited or cleared.
+
+Stop publication. Validation, manual review, publication/replay, and anonymous acceptance were not performed; do not override blockers or create another retry key until the unresolved operation can be safely reconciled. The 1102 occurred during moderation/status reconciliation after image work was decoupled, so this follow-up did not resolve the observed resource-limit failure and its cause remains undetermined. Keep Spark and billing closed.
 
 ## November 16: grounding candidate deployed; publication stopped
 
@@ -52,7 +58,7 @@ The owner requested a fresh whole-application audit plus Spark review and comple
 
 Owner authorized fixing, committing, pushing and deploying the missing-lesson validation bug. See [release checklist](releases/2026-11-08-validation-missing-lessons.md). Route-level regression reproduced the reported 409; missing lesson fingerprints now use null consistently with transaction reads. Publication fixture41/41 passes including partial drafts and concurrent creation refusal. TypeScript/lint and unit checks pass; four prior navigation warnings remain. OpenNext build succeeds; local Worker smoke is blocked by host uv_interface_addresses. Wrangler and CLI Git lack authentication in this workspace. No production changes occurred; remote release gates and deployment remain pending.
 
-Last materially updated: November 16, 2026.
+Last materially updated: November 17, 2026.
 
 ## Active request: phone UX improvements, followed by Spark review and activation
 
