@@ -185,7 +185,8 @@
     "sparkHistoryPassedWhileDisabled": true
   },
   "claimSupportFollowUp": {
-    "status": "local_qualified_hosted_pending",
+    "status": "deployed_publication_blocked_1102",
+    "candidateSha": "664f77f92683d5a979ce7dc8099e535714ffcd28",
     "implementationCommit": "0c235d2b825431b0305072204c7e8b3c53bc6e2f",
     "cause": "Source-backed lesson evidence was fingerprinted before deterministic quiz IDs, objective links, and transfer criteria were added to the persisted payload.",
     "implementation": "Mint claim-support evidence from the fully assembled lesson immediately before final moderation and atomic save.",
@@ -195,17 +196,72 @@
     "lessonOperationTestsPassed": 11,
     "lintErrors": 0,
     "nextBuildPassed": true,
+    "openNextBuildPassed": true,
+    "workerSmokePassed": true,
+    "productionDependencyAuditPassed": true,
+    "securityRun": 43964002976,
+    "engineeringRun": 43964002991,
+    "fullBrowserRun": 43964472630,
+    "fullBrowserDuration": "29m53s",
+    "workerBundleSha256": "d05223bf4d44c84108a102ab62aa3bc9c5568f0c3ac2064c37be5cc65c64bc45",
+    "stagingWorkerVersionId": "6dc840f1-19b1-4c7b-83a9-af051d450c75",
+    "productionWorkerVersionId": "cabd84e4-db05-4f3d-b1d0-99227de32393",
+    "health": "Staging, cache-busted production apex and direct Worker reported the exact candidate, healthy configuration and datastore, direct-google, and publication V2. Deployment bindings kept Spark and billing closed; required production secret names were present.",
+    "acceptanceCourseId": "439d26d48a8b1044a97274d8912575c36efe5c20226217d56daddec2233bf1e2",
+    "lesson00": {
+      "idempotencyKey": "publication-acceptance-664f77f-arithmetic-0-0-v2",
+      "operationId": "8f44c30f1700ca6ce9c9b192cb2a59f3edc65d4695c84eb1f5b7fccf2bf6c1d7",
+      "status": "completed",
+      "terminalReason": "lesson_committed",
+      "pendingCalls": 0
+    },
+    "lesson01": {
+      "idempotencyKey": "publication-acceptance-664f77f-arithmetic-0-1-v2",
+      "operationId": "a406c3a555c33b1f4e0268592c349853d373b5ba24ac5d0b7487059fef6424cb",
+      "status": "failed",
+      "terminalReason": "provider_outcome_unknown",
+      "pendingCalls": 1,
+      "usageReceiptStatus": "observed",
+      "finding": "Initial request and repeated status reads returned Cloudflare 503 resource-limit errors, including another status read after reconciliation; the cause of this particular occurrence is not established. A cache-busted apex health check remained healthy."
+    },
+    "lesson11Attempted": false,
+    "validationReviewReplayAnonymousAcceptance": "not performed",
+    "followUpBranch": "fix/lesson-illustration-async-1102",
+    "followUpStatus": "reserved; asynchronous Tier C implementation and new hosted gates required",
     "affectedProductionLessonIds": ["0-0", "0-1", "1-1"],
     "publicationAttempted": false
+  },
+  "asynchronousIllustrationFollowUp": {
+    "status": "local_qualified_hosted_gates_pending",
+    "branch": "fix/lesson-illustration-async-1102",
+    "basedOn": "664f77f92683d5a979ce7dc8099e535714ffcd28",
+    "change": "Move optional Pro lesson illustration generation to a separately authenticated endpoint triggered after lesson load; conditionally attach only if lesson content has not changed.",
+    "causeFinding": "The original 0-1 503 cause is not proven. Durable evidence shows the failed operation's only pending call was the Course generation-labeled moderation request; its receipt contains omni-moderation-latest, zero recorded cost, and no saved moderation response. No lesson-generation response was committed.",
+    "localEvidence": {
+      "lessonIntegrityPassed": 24,
+      "lessonOperationsPassed": 11,
+      "illustrationTierContractsPassed": 18,
+      "nextBuildPassed": true,
+      "cloudflareBuildPassed": true,
+      "workerSmokePassed": 4,
+      "productionDependencyAuditFindings": 0,
+      "lintErrors": 0,
+      "existingLintWarnings": 4
+    },
+    "hostedEngineering": "pending",
+    "hostedSecurity": "pending",
+    "hostedFullBrowser": "pending",
+    "stagingWorkerVersionId": null,
+    "productionWorkerVersionId": null,
+    "acceptanceResume": "blocked until hosted gates, deployments, and a safe retry decision for failed 0-1 operation"
   },
   "rollback": {
     "workerVersionId": "9ad8aeff-c49a-4b19-866f-0e326e6c3ca9",
     "strategy": "Roll back to the exact-source flags-off base Worker and retain the additive Spark schema and canary evidence."
   },
   "remainingGates": [
-    "Complete exact-source engineering, security, and full-browser qualification for the final-payload grounding correction",
-    "Deploy the exact grounding candidate through staging and production with Spark and billing closed",
-    "Regenerate the three affected source-backed lessons and complete one validated idempotent course publication and anonymous release acceptance",
+    "Implement and qualify a separate candidate moving optional Tier C illustration work out of synchronous lesson completion; investigate the 1102 and unknown provider outcome",
+    "Safely resolve the failed 0-1 operation and complete the remaining source-backed lesson regeneration, validated idempotent publication, replay, and anonymous release acceptance without overriding blockers",
     "Complete hosted deletion and downgrade acceptance",
     "Exercise backup restore against an isolated non-production destination"
   ]

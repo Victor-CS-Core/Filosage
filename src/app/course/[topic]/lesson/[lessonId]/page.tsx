@@ -711,11 +711,26 @@ export default function LessonView() {
       const lesson = resolvedCourse.modules[moduleIndex]?.lessons[lessonIndex];
       if (!lesson) throw new Error("This lesson is not part of the course.");
       setCourseRecord({ key: requestViewKey, value: resolvedCourse });
+      const requestLessonIllustration = () => {
+        if (!resolvedCourse.canManage || (!isOwner && resolvedCourse.creatorTier !== "pro")) return;
+        void learnerRequest(
+          user,
+          `/api/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(lessonId)}/illustration`,
+          { method: "POST" },
+        ).then((response) => {
+          if (!response.ok) console.warn("Optional lesson illustration request failed.", response.status);
+        }).catch((error: unknown) => {
+          console.warn("Optional lesson illustration request failed.", error);
+        });
+      };
 
       const lessonResponse = await learnerRequest(user, `/api/courses/${courseId}/lessons/${lessonId}`);
       if (lessonResponse.ok) {
         const loadedLesson = await lessonResponse.json() as LessonData;
-        if (isCurrentView()) setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(loadedLesson) });
+        if (isCurrentView()) {
+          setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(loadedLesson) });
+          if (!loadedLesson.illustration) requestLessonIllustration();
+        }
         return;
       }
 
@@ -773,6 +788,7 @@ export default function LessonView() {
       if (!completedLesson) throw new Error("Your completed lesson stages are saved. Try again to continue this same request.");
       setGenerationProgress(100);
       setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(completedLesson as LessonData) });
+      if (!completedLesson.illustration) requestLessonIllustration();
       generationRequestRef.current = null;
     } catch (loadError) {
       if (isCurrentView()) setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");

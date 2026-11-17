@@ -76,6 +76,23 @@ test("attaching a provider-moderated illustration preserves the lesson safety pr
   assert.equal(await generationSafetyProofStatus(illustrated, "lesson:0-0"), "passed");
   assert.notEqual(publicationContentFingerprint(illustrated), publicationFingerprint);
 });
+test("delayed illustration work cannot attach to a lesson regenerated while it was running", async () => {
+  const f = await fixture();
+  await f.owned(() => store.saveLesson(f.id, "0-0", f.data, f.guard));
+  const original = (await store.getLesson(f.id, "0-0"))!;
+  const expectedFingerprint = publicationContentFingerprint(original);
+  await f.owned(() => store.putStoredDocument(`courses/${f.id}/lessons/0-0`, {
+    ...original,
+    content: "A newer lesson version",
+  }));
+  const result = await f.owned(() => store.setLessonIllustration(f.id, "0-0", {
+    assetId: "stale-illustration",
+    version: 1,
+    kind: "lesson",
+  }, expectedFingerprint));
+  assert.equal(result, null);
+  assert.equal((await store.getLesson(f.id, "0-0"))?.illustration, undefined);
+});
 test("independent lesson reservations share budgets without serializing their resource locks", async () => {
   const f = await fixture();
   await f.owned(() => finalizeAiUsage(f.reservation, { usageSamples: f.guard.usage.usageSamples, failed: true }));

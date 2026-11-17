@@ -22,8 +22,8 @@ import type { Course, CourseBanner, CourseIllustration } from "@/lib/course-type
  * POST /api/courses/[courseId]/media
  *
  * Tier B/C media wave: generates the course hero (Plus and Pro) plus one
- * illustration per module (Plus only — Pro courses illustrate per lesson
- * instead, wired in generate-lesson). Idempotent — subjects that already
+ * illustration per module (Plus only — Pro lesson art is requested separately
+ * after its lesson loads). Idempotent — subjects that already
  * have art are skipped, and a per-subject lease prevents double-spend on
  * retries. Fire-and-forget safe: the frontend calls this after course
  * creation, and the course page re-triggers it when art is missing.

@@ -262,7 +262,7 @@ export default function CourseMap() {
 
   // Tier B/C media wave: once a manageable course loads without its expected
   // art, kick off generation in the background. Plus expects hero + module
-  // art; Pro expects hero + per-lesson art (lessons illustrate on generation).
+  // art; Pro lesson illustrations are requested separately after lesson load.
   // The endpoint is idempotent, so this is safe to re-trigger on later visits
   // if art is still missing. Illustrations are enhancement-only and never block
   // the course.

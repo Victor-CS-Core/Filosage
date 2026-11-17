@@ -124,13 +124,15 @@ test("illustration service enforces the per-course cap around the provider call"
   expect(reuseReturnAt).toBeLessThan(reserveBudgetAt);
 });
 
-test("media wave and lesson generation attach the course budget to every illustration", () => {
+test("media and separate lesson illustration routes attach the course budget", () => {
   const media = readFileSync("src/app/api/courses/[courseId]/media/route.ts", "utf8");
   expect(media).toContain("budgetTierForAccount(account.plan, account.isOwner)");
   expect(media).toContain("courseId,\n        budgetTier");
   const lesson = readFileSync("src/app/api/generate-lesson/route.ts", "utf8");
-  expect(lesson).toContain("budgetTierForAccount(account.plan, account.isOwner)");
-  expect(lesson).toContain("courseId,\n              budgetTier");
+  expect(lesson).not.toContain("createOrReuseCourseIllustration");
+  const illustration = readFileSync("src/app/api/courses/[courseId]/lessons/[lessonId]/illustration/route.ts", "utf8");
+  expect(illustration).toContain("budgetTierForAccount(account.plan, account.isOwner)");
+  expect(illustration).toContain("courseId,\n        budgetTier");
 });
 
 test("module and lesson art follow the locked-in engraved-plate direction, centered", () => {

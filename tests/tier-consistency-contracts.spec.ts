@@ -26,9 +26,11 @@ test("course imagery follows the tiered media policy (hero + module art for Plus
   expect(courseGeneration).not.toContain("createOrReuseCourseIllustration");
   expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/media/route.ts"))).toBe(true);
   expect(existsSync(resolve(root, "src/app/api/course-illustrations/[assetId]/route.ts"))).toBe(true);
-  // Pro lesson generation wires per-lesson illustrations after the atomic commit.
-  expect(lessonGeneration).toContain("createOrReuseCourseIllustration");
-  expect(lessonGeneration).toContain("setLessonIllustration");
+  // Lesson generation returns without waiting for optional Pro illustration work.
+  expect(lessonGeneration).not.toContain("createOrReuseCourseIllustration");
+  expect(lessonGeneration).not.toContain("setLessonIllustration");
+  expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/lessons/[lessonId]/illustration/route.ts"))).toBe(true);
+  expect(source("src/app/course/[topic]/lesson/[lessonId]/page.tsx")).toContain("/illustration");
   // Tier gating lives in the plan capabilities: Plus and Pro illustrate, Free does not.
   expect(plans).toContain("course_illustrations");
   expect(plans).toMatch(/free:[\s\S]*?course_illustrations: false/);

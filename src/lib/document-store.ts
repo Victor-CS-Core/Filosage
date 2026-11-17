@@ -307,19 +307,19 @@ export async function setLessonIllustration(
   courseId: string,
   lessonId: string,
   illustration: CourseIllustration,
+  expectedContentFingerprint?: string,
 ) {
-  const updatedAt = new Date();
-  const document = await documentStoreJson<DocumentRecord>(
-    `/documents/${encodeDocumentPath(`courses/${courseId}/lessons/${lessonId}`)}?updateMask.fieldPaths=illustration&updateMask.fieldPaths=updatedAt`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({
-        fields: toDocumentFields({ illustration, updatedAt }),
-      }),
-    },
-  );
-  if (!document) throw new Error("The document store did not return the updated lesson.");
-  return parseDocument(document);
+  const path = `courses/${courseId}/lessons/${lessonId}`;
+  return runStoredDocumentTransaction([path], (documents) => {
+    const lesson = documents[path];
+    if (!lesson) throw new Error("The lesson could not be reopened.");
+    if (expectedContentFingerprint && publicationContentFingerprint(lesson) !== expectedContentFingerprint) {
+      return { writes: [], result: null };
+    }
+    if (lesson.illustration) return { writes: [], result: lesson };
+    const updated = { ...lesson, illustration, updatedAt: new Date().toISOString() };
+    return { writes: [{ path, data: updated }], result: updated };
+  });
 }
 
 export async function listLessons(courseId: string) {

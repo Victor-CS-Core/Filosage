@@ -1,5 +1,17 @@
 # Phone UX improvements, then Spark activation
 
+## November 17 asynchronous lesson illustration follow-up
+
+Branch `fix/lesson-illustration-async-1102` removes optional Pro Tier C illustration work from synchronous lesson generation. The lesson client queues that decorative work through a separate authenticated endpoint after lesson load; the endpoint keeps ownership/Pro checks, existing illustration budgets and deduplication, and conditionally attaches only to the same content fingerprint. This addresses the synchronous image-work risk without claiming it was the proven cause of the earlier 503.
+
+Local lesson-integrity 24/24, lesson-operations 11/11, illustration/tier contracts 18/18, Next and Cloudflare builds, Worker smoke 4/4, production audit (zero findings), and lint (zero errors, four pre-existing warnings) pass. Exact-source hosted engineering/security/full-browser gates and both deployments remain pending. The failed production `0-1` operation is still `provider_outcome_unknown`; its only call record is an in-flight moderation stage, with an observed moderation receipt and zero recorded cost, but no saved moderation response. Preserve the durable record; do not treat it as completed. Resume course acceptance only after a safe retry decision.
+
+## November 16 grounding rollout and blocked publication
+
+Candidate `664f77f92683d5a979ce7dc8099e535714ffcd28` passed hosted security `43964002976`, engineering `43964002991`, and full browser `43964472630` (29m53s), then deployed to staging Worker `6dc840f1-19b1-4c7b-83a9-af051d450c75` and production Worker `cabd84e4-db05-4f3d-b1d0-99227de32393`. Exact-SHA health/readiness passed at staging, apex, and direct Worker; Spark and billing remained closed and required secret names were present.
+
+Arithmetic acceptance lesson `0-0` committed with no pending provider calls. The `0-1` request and repeated status reads encountered Cloudflare 503 resource-limit errors. Its operation `a406c3a555c33b1f4e0268592c349853d373b5ba24ac5d0b7487059fef6424cb` was reconciled as `provider_outcome_unknown`, retaining one pending call despite an observed usage receipt. No new key was used. Publication was stopped: lesson `1-1`, validation, review, publication, replay, and anonymous checks remain unperformed. The image-related 1102 hypothesis is not established as the cause of this particular failure. The separate `fix/lesson-illustration-async-1102` branch is reserved for the requested asynchronous Tier C follow-up; it needs implementation and fresh hosted qualification before deployment.
+
 ## November 12 application audit and Spark completion
 
 Status: started. The owner requested a current whole-application feature audit plus review, repair, and completion of Spark. This continues the existing outcome without treating stale October evidence as current proof. The owner later authorized the exact candidate's additive production migration and production deployment with Spark and billing closed. Paid Spark calls, budget seeding, billing activation, and Spark flag activation remain separate approval-gated actions.
