@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import {
   SPARK_BUDGET_MICROS,
   SPARK_PRICE_VERSION,
+  sparkAccountAllowed,
   sparkFeaturePolicy,
   sparkMaximumReservationMicros,
   sparkPrice,
@@ -31,7 +32,7 @@ export class SparkBudgetError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly status: 409 | 429 | 503 = 503,
+    public readonly status: 403 | 409 | 429 | 503 = 503,
   ) {
     super(message);
   }
@@ -162,6 +163,9 @@ export async function reserveSparkBudget(input: {
 }) {
   if (!sparkFeaturePolicy().liveAiEnabled) {
     throw new SparkBudgetError("SPARK_LIVE_AI_DISABLED", "Spark live tutoring is not enabled.");
+  }
+  if (!sparkAccountAllowed(input.uid)) {
+    throw new SparkBudgetError("SPARK_ACCOUNT_NOT_ADMITTED", "Spark is not available for this account.", 403);
   }
   const parsedCategory = sparkBudgetCategorySchema.parse(input.category);
   const db = await database();

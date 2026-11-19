@@ -2,7 +2,7 @@ import { withAccountRequest, authorizationResponse, requireAcceptedAccount } fro
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { requireSparkLessonAccess, sparkAccessErrorResponse } from "@/lib/spark/access";
-import { sparkFeaturePolicy } from "@/lib/spark/config";
+import { sparkAccountDenial, sparkFeaturePolicy } from "@/lib/spark/config";
 import { sparkAttemptRequestSchema } from "@/lib/spark/contracts";
 import { assessSparkAttempt } from "@/lib/spark/assessment";
 import {
@@ -14,6 +14,8 @@ import {
 async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
+    const denied = sparkAccountDenial(account.uid);
+    if (denied) return denied;
     if (!sparkFeaturePolicy().sparkEnabled) {
       return Response.json({ error: "Spark is not enabled.", code: "SPARK_DISABLED" }, { status: 503 });
     }

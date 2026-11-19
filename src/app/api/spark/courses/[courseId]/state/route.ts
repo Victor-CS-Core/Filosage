@@ -4,7 +4,7 @@ import { getStoredDocument, listAllStoredDocuments } from "@/lib/document-store"
 import { publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 import { readSparkOperationalControl } from "@/lib/spark/budget";
 import { sparkAccessErrorResponse, requireSparkLessonAccess } from "@/lib/spark/access";
-import { sparkFeaturePolicy } from "@/lib/spark/config";
+import { sparkAccountDenial, sparkFeaturePolicy } from "@/lib/spark/config";
 import { readSparkManifest } from "@/lib/spark/preparation";
 
 interface RouteParams {
@@ -15,6 +15,8 @@ async function handleGET(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     const account = await requireAcceptedAccount(request);
+    const denied = sparkAccountDenial(account.uid);
+    if (denied) return denied;
     const url = new URL(request.url);
     const lessonId = url.searchParams.get("lessonId")?.trim() ?? "";
     const locale = url.searchParams.get("locale")?.trim() || "en";

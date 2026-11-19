@@ -2,7 +2,7 @@ import { authorizationResponse, requireAcceptedAccount, withAccountRequest } fro
 import type { Course } from "@/lib/course-types";
 import { getCourse, listAllStoredDocuments, listStoredDocumentsByField } from "@/lib/document-store";
 import { readSparkOperationalControl } from "@/lib/spark/budget";
-import { sparkFeaturePolicy } from "@/lib/spark/config";
+import { sparkAccountDenial, sparkFeaturePolicy } from "@/lib/spark/config";
 import { safeSparkManifest } from "@/lib/spark/contracts";
 
 interface RouteParams {
@@ -17,6 +17,8 @@ async function handleGET(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     const account = await requireAcceptedAccount(request);
+    const denied = sparkAccountDenial(account.uid);
+    if (denied) return denied;
     const course = await getCourse(courseId) as Course | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (course.authorId !== account.uid && !account.isOwner) {

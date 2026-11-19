@@ -3,7 +3,7 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { requireSparkLessonAccess, sparkAccessErrorResponse } from "@/lib/spark/access";
-import { sparkFeaturePolicy } from "@/lib/spark/config";
+import { sparkAccountDenial, sparkFeaturePolicy } from "@/lib/spark/config";
 import { sparkSessionRequestSchema } from "@/lib/spark/contracts";
 import { prepareSparkLesson, readSparkManifest } from "@/lib/spark/preparation";
 import { createOrResumeSparkSession, sparkRepositoryErrorResponse } from "@/lib/spark/repository";
@@ -11,6 +11,8 @@ import { createOrResumeSparkSession, sparkRepositoryErrorResponse } from "@/lib/
 async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
+    const denied = sparkAccountDenial(account.uid);
+    if (denied) return denied;
     if (!sparkFeaturePolicy().sparkEnabled) {
       return Response.json({ error: "Spark is not enabled.", code: "SPARK_DISABLED" }, { status: 503 });
     }

@@ -2,7 +2,7 @@ import { withAccountRequest, authorizationResponse, requireAcceptedAccount } fro
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { sparkAccessErrorResponse } from "@/lib/spark/access";
-import { sparkFeaturePolicy } from "@/lib/spark/config";
+import { sparkAccountDenial, sparkFeaturePolicy } from "@/lib/spark/config";
 import { sparkPrepareRequestSchema } from "@/lib/spark/contracts";
 import { prepareSparkLesson } from "@/lib/spark/preparation";
 
@@ -13,6 +13,8 @@ interface RouteParams {
 async function handlePOST(request: Request, { params }: RouteParams) {
   try {
     const account = await requireAcceptedAccount(request);
+    const denied = sparkAccountDenial(account.uid);
+    if (denied) return denied;
     if (!sparkFeaturePolicy().prepareEnabled) {
       return Response.json({ error: "Spark preparation is paused.", code: "SPARK_PREPARATION_DISABLED" }, { status: 503 });
     }

@@ -22,6 +22,7 @@ import {
 } from "@/lib/spark/access";
 import type { SparkTaskRecord } from "@/lib/spark/registry";
 import { sparkPreparationAdmissionEnabled } from "@/lib/spark/budget";
+import { sparkAccountAllowed } from "@/lib/spark/config";
 
 const TARGET_CHUNK_WORDS = 450;
 const MAXIMUM_CHUNK_WORDS = 600;
@@ -270,6 +271,7 @@ export async function prepareSparkLesson(
   locale: string,
 ) {
   locale = normalizeSparkLocale(locale);
+  if (!sparkAccountAllowed(account.uid)) throw new Error("SPARK_ACCOUNT_NOT_ADMITTED");
   if (!await sparkPreparationAdmissionEnabled()) throw new Error("SPARK_PREPARATION_DISABLED");
   const context = await requireSparkLessonAccess(account, courseId, lessonId);
   if (context.course.authorId !== account.uid && !account.isOwner) {

@@ -18,6 +18,7 @@ const directory = mkdtempSync(join(tmpdir(), "spark-assessment-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 process.env.OPENAI_API_KEY = "testfixture-spark-never-sent";
 process.env.SPARK_ENABLED = "true";
+process.env.SPARK_ACCESS_MODE = "public";
 process.env.SPARK_LIVE_AI_ENABLED = "true";
 after(() => rmSync(directory, { recursive: true, force: true }));
 
@@ -152,8 +153,38 @@ test("a saved turn replays only for the same learner payload", async () => {
   } finally { f.close(); }
 });
 
+test("canary denies tutoring and assessment before usage admission or any provider traffic", async () => {
+  const f = await fixture();
+  const previousList = process.env.SPARK_CANARY_ACCOUNT_UIDS;
+  const transport = mock.method(globalThis, "fetch", () => { throw new Error("Cannot call the provider"); });
+  process.env.SPARK_ACCESS_MODE = "canary";
+  try {
+    for (const list of ["", `${f.uid},`, `${f.uid},*`, "another-account"]) {
+      process.env.SPARK_CANARY_ACCOUNT_UIDS = list;
+      await assert.rejects(f.runTurn(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+      await assert.rejects(f.run(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+    }
+    process.env.SPARK_CANARY_ACCOUNT_UIDS = f.uid;
+    delete process.env.SPARK_ACCESS_MODE;
+    await assert.rejects(f.runTurn(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+    process.env.SPARK_ACCESS_MODE = "invalid";
+    await assert.rejects(f.runTurn(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+    assert.equal(transport.mock.callCount(), 0);
+    assert.equal(f.database.prepare("SELECT COUNT(*) AS count FROM spark_usage_reservation").get()?.count, 0);
+  } finally {
+    process.env.SPARK_ACCESS_MODE = "public";
+    if (previousList === undefined) delete process.env.SPARK_CANARY_ACCOUNT_UIDS;
+    else process.env.SPARK_CANARY_ACCOUNT_UIDS = previousList;
+    transport.mock.restore();
+    f.close();
+  }
+});
+
 test("tutoring cites the unprepared saved lesson and replays without another dispatch", async () => {
   const f = await fixture();
+  const previousList = process.env.SPARK_CANARY_ACCOUNT_UIDS;
+  process.env.SPARK_ACCESS_MODE = "canary";
+  process.env.SPARK_CANARY_ACCOUNT_UIDS = `other-account, ${f.uid}`;
   let sourceId: string | undefined;
   const p = provider(async () => 100, (input) => {
     sourceId = input.match(/<course_chunk id="(chunk-[a-f0-9]+)">\nAn observation records what was measured/)?.[1];
@@ -178,7 +209,13 @@ test("tutoring cites the unprepared saved lesson and replays without another dis
     await assert.rejects(f.runTurn("Explain the distinction.", { ...f.context, lessonVersion: "lesson-new" }), { code: "SPARK_STALE_LESSON" });
     assert.equal(p.count(), 1);
     assert.equal(f.database.prepare("SELECT COUNT(*) AS count FROM spark_usage_reservation WHERE status = 'committed'").get()?.count, 1);
-  } finally { p.restore(); f.close(); }
+  } finally {
+    process.env.SPARK_ACCESS_MODE = "public";
+    if (previousList === undefined) delete process.env.SPARK_CANARY_ACCOUNT_UIDS;
+    else process.env.SPARK_CANARY_ACCOUNT_UIDS = previousList;
+    p.restore();
+    f.close();
+  }
 });
 
 for (const failure of ["count_failure", "ambiguous_inference"] as const) test(`turn ${failure} exposes a new retry identity only after confirmed no dispatch`, async () => {

@@ -26,7 +26,7 @@ import {
   SparkBudgetError,
   type SparkBudgetReservation,
 } from "@/lib/spark/budget";
-import { sparkPrice, sparkRuntimeLimits, sparkUsageCostMicros } from "@/lib/spark/config";
+import { sparkAccountAllowed, sparkPrice, sparkRuntimeLimits, sparkUsageCostMicros } from "@/lib/spark/config";
 import {
   SPARK_SCHEMA_VERSION,
   savedTextFallback,
@@ -108,6 +108,9 @@ export async function orchestrateSparkTurn(input: {
   action: string;
   message: string;
 }) {
+  if (!sparkAccountAllowed(input.account.uid)) {
+    throw new SparkAccessError(403, "SPARK_ACCOUNT_NOT_ADMITTED", "Spark is not available for this account.");
+  }
   if (input.session.lessonVersion !== input.context.lessonVersion) {
     throw new SparkAccessError(409, "SPARK_STALE_LESSON", "This lesson changed. Reload Spark before continuing.");
   }

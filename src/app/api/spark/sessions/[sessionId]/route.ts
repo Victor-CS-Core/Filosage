@@ -1,5 +1,6 @@
 import { withAccountRequest, authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { readSparkSessionPage, sparkRepositoryErrorResponse } from "@/lib/spark/repository";
+import { sparkAccountDenial } from "@/lib/spark/config";
 
 interface RouteParams {
   params: Promise<{ sessionId: string }>;
@@ -8,6 +9,8 @@ interface RouteParams {
 async function handleGET(request: Request, { params }: RouteParams) {
   try {
     const account = await requireAcceptedAccount(request);
+    const denied = sparkAccountDenial(account.uid);
+    if (denied) return denied;
     const { sessionId } = await params;
     if (!/^[a-z0-9][a-z0-9_-]{0,119}$/.test(sessionId)) {
       return Response.json({ error: "Choose a valid Spark session." }, { status: 400 });
