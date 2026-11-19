@@ -15,7 +15,7 @@ import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/c
 import { aiClient } from "@/lib/local-ai";
 import { publicationContentFingerprint } from "@/lib/publication-content";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
-import type { SparkLessonContext } from "@/lib/spark/access";
+import { SparkAccessError, type SparkLessonContext } from "@/lib/spark/access";
 import {
   markSparkBudgetDispatched,
   markSparkBudgetUnknown,
@@ -108,6 +108,9 @@ export async function orchestrateSparkTurn(input: {
   action: string;
   message: string;
 }) {
+  if (input.session.lessonVersion !== input.context.lessonVersion) {
+    throw new SparkAccessError(409, "SPARK_STALE_LESSON", "This lesson changed. Reload Spark before continuing.");
+  }
   const replay = await readSparkTurnByRequest(input.account.uid, input.requestId);
   if (replay) {
     if (replay.sessionId !== input.session.id || replay.lessonVersion !== input.context.lessonVersion
@@ -121,7 +124,10 @@ export async function orchestrateSparkTurn(input: {
     return { response: saved.data, replayed: true };
   }
 
-  const chunks = await retrieveSparkChunks(input.context, input.message);
+  const chunks = retrieveSparkChunks(input.context, input.message);
+  if (!chunks.length) {
+    throw new SparkRepositoryError(409, "SPARK_LESSON_TEXT_REQUIRED", "Spark tutoring needs saved lesson text. Reopen the lesson before trying again.");
+  }
   const history = await readSparkSessionPage(input.account, input.session.id, { limit: 2 });
   const fingerprint = publicationContentFingerprint({
     sessionId: input.session.id,
@@ -195,7 +201,7 @@ export async function orchestrateSparkTurn(input: {
       action: input.action,
       message: input.message,
       response,
-      sourceIds: chunks.map((chunk) => chunk.id),
+      sourceIds: [...new Set(response.blocks.flatMap((block) => block.sourceRefs ?? []))],
       usageReservationId: input.requestId,
     });
     await finalizeAiUsage(allowance, { ...observedUsage, model: price.model, responseId });

@@ -3,6 +3,7 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import type { SparkLessonContext } from "../../src/lib/spark/access.ts";
 import { buildSparkPreparation, chunkSparkLesson, sparkManifestFromDocument } from "../../src/lib/spark/preparation.ts";
+import { retrieveSparkChunks } from "../../src/lib/spark/retrieval.ts";
 
 function context(content: string): SparkLessonContext {
   return {
@@ -60,4 +61,18 @@ test("a persisted manifest remains readable through the strict learner contract"
   const prepared = buildSparkPreparation(context("A concise saved lesson."), "en", "2026-10-09T00:00:00.000Z");
   assert.deepEqual(sparkManifestFromDocument(prepared.manifest), prepared.manifest);
   assert.equal(sparkManifestFromDocument({ ...prepared.manifest, ownerUid: "private-owner" }), null);
+});
+
+test("tutoring ranks exact saved-lesson excerpts without a prepared index", () => {
+  const lesson = context(`${"Background ".repeat(450)}\n\n${"Weighted sigmoid ".repeat(225)}`);
+  const preparation = buildSparkPreparation(lesson, "en");
+  const sources = retrieveSparkChunks(lesson, "How does the sigmoid work?", 1);
+  assert.equal(sources.length, 1);
+  assert.match(sources[0].text, /^Weighted sigmoid/);
+  assert.equal(sources[0].id, preparation.chunks[1].id);
+
+  const changed = { ...context("A revised explanation of bias."), lessonVersion: "lesson-new" };
+  assert.equal(retrieveSparkChunks(changed, "sigmoid")[0].text, changed.lesson.content);
+  assert.ok(retrieveSparkChunks(changed, "sigmoid").every((chunk) => chunk.id !== sources[0].id));
+  assert.deepEqual(retrieveSparkChunks(context("  "), "sigmoid"), []);
 });

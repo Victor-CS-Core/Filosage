@@ -30,6 +30,8 @@ Pinned defaults are 4,000 input tokens, 900 output tokens, four globally dispatc
 
 The safe staging order is server Spark, public UI, deterministic preparation, then live AI for a small cohort. Verify saved-only and practice-only behavior before each later step. Never enable live AI merely because the UI flag is on.
 
+Tutoring ranks excerpts directly from the authorized saved lesson version; a missing preparation index must not remove lesson context. For hosted grounding acceptance, use a synthetic saved lesson and ask about a detail that is only in that lesson before preparing it. Verify a `course_supported` response with a valid excerpt reference and that the same reference is saved and replayed without a new provider charge. Reopen the lesson after a version change; an old session must refuse even a request carrying the new lesson version. Also verify the published downgrade and deletion controls with disposable accounts before learner rollout.
+
 ## Budget operation
 
 The Command Center Spark panel reads the current UTC month and is the supported owner control. Every change requires a reason and writes a pseudonymous audit record. Category caps must fit inside the AI cap, and no cap can be lowered below committed, reserved, plus unknown exposure.
