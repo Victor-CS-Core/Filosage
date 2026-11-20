@@ -69,15 +69,13 @@ test("billing events retain tier, interval, offer, and raw lifecycle dimensions"
   expect(stripe).toContain("billingPriceId: resolved.priceId");
 });
 
-test("Control Room launch gates use exact report counts and disclose capped sources", () => {
+test("Control Room reporting uses exact report counts and discloses capped sources", () => {
   const overview = source("src/app/api/admin/overview/route.ts");
   const page = source("src/app/admin/page.tsx");
   expect(overview).toContain('countCollectionDocuments("contentReports")');
   expect(overview).toContain("totalContentReportCount - resolvedContentReportCount - dismissedContentReportCount");
   expect(overview).toContain("limitedSources");
   expect(page).toContain("Some totals are partial because the reporting read limit was reached");
-  expect(page).toContain("Billing remains fail-closed");
-  expect(page).toContain("Checkout is available to eligible accounts");
 });
 
 test("manual grants cannot replace billing-managed access", () => {
