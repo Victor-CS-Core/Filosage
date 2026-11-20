@@ -31,6 +31,25 @@ export function sparkFeaturePolicy() {
   };
 }
 
+export function sparkAccountAllowed(uid: string) {
+  const mode = serverEnvironment.SPARK_ACCESS_MODE;
+  if (mode === "public") return true;
+  if (mode !== "canary") return false;
+  const configured = serverEnvironment.SPARK_CANARY_ACCOUNT_UIDS ?? "";
+  if (configured.length > 4_096) return false;
+  const ids = configured.split(",").map((id) => id.trim());
+  return ids.length <= 10
+    && ids.every((id) => /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$/.test(id))
+    && new Set(ids).size === ids.length
+    && ids.includes(uid);
+}
+
+export function sparkAccountDenial(uid: string) {
+  if (!sparkFeaturePolicy().sparkEnabled || sparkAccountAllowed(uid)) return null;
+  return Response.json({ code: "SPARK_ACCOUNT_NOT_ADMITTED", error: "Spark is not available for this account." },
+    { status: 403, headers: { "Cache-Control": "private, no-store" } });
+}
+
 export function sparkRuntimeLimits() {
   return {
     maximumInputTokens: integer(serverEnvironment.SPARK_MAX_INPUT_TOKENS, SPARK_MAX_INPUT_TOKENS, 500, SPARK_MAX_INPUT_TOKENS),

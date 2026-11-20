@@ -18,6 +18,7 @@ const directory = mkdtempSync(join(tmpdir(), "spark-assessment-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 process.env.OPENAI_API_KEY = "testfixture-spark-never-sent";
 process.env.SPARK_ENABLED = "true";
+process.env.SPARK_ACCESS_MODE = "public";
 process.env.SPARK_LIVE_AI_ENABLED = "true";
 after(() => rmSync(directory, { recursive: true, force: true }));
 
@@ -27,7 +28,7 @@ const { putStoredDocument, listAllStoredDocuments } = await import("../../src/li
 const { configureSparkBudget } = await import("../../src/lib/spark/budget.ts");
 const { assessSparkAttempt } = await import("../../src/lib/spark/assessment.ts");
 const { orchestrateSparkTurn, sparkOrchestrationErrorResponse } = await import("../../src/lib/spark/orchestration.ts");
-const { appendSparkTurn } = await import("../../src/lib/spark/repository.ts");
+const { appendSparkTurn, readSparkTurnByRequest } = await import("../../src/lib/spark/repository.ts");
 const { savedTextFallback } = await import("../../src/lib/spark/contracts.ts");
 
 class Statement {
@@ -73,21 +74,23 @@ async function fixture(options: { rejectRelease?: boolean } = {}) {
     await configureSparkBudget({ actorUid: uid, mode: "live", liveAiEnabled: true, preparationEnabled: false, concurrencyLimit: 4, aiCapMicros: 17_000_000, categoryCaps: { tutoring: 12_000_000, preparation: 3_000_000, assessment: 2_000_000, summary: 0, embedding: 0 }, reason: "Isolated SDK lifecycle fixture" });
   });
   const run = () => owned(() => assessSparkAttempt({ request: new Request("https://fixture.invalid/spark"), account, context, session, attempt }));
-  const runTurn = (message = "Explain the distinction.") => owned(() => orchestrateSparkTurn({ request: new Request("https://fixture.invalid/spark"), account, context, session, requestId: attempt.requestId, action: "explain", message }));
+  const runTurn = (message = "Explain the distinction.", lessonContext = context) => owned(() => orchestrateSparkTurn({ request: new Request("https://fixture.invalid/spark"), account, context: lessonContext, session, requestId: attempt.requestId, action: "explain", message }));
   const saveTurn = () => owned(() => appendSparkTurn({ session, requestId: attempt.requestId, action: "explain", message: "Explain the distinction.", response: savedTextFallback(context.lessonVersion, context.lesson.content), sourceIds: [] }));
-  return { database, run, runTurn, saveTurn, owned, uid, close: () => { clearTestBindings(); database.close(); } };
+  return { database, run, runTurn, saveTurn, owned, uid, context, requestId: attempt.requestId, close: () => { clearTestBindings(); database.close(); } };
 }
 
-function provider(onCount: () => Promise<number>, onInference?: () => void) {
+function provider(onCount: () => Promise<number>, onInference?: (input: string) => unknown) {
   let inferences = 0;
-  const transport = mock.method(globalThis, "fetch", async (url: string | URL | Request) => {
+  const transport = mock.method(globalThis, "fetch", async (url: string | URL | Request, options?: RequestInit) => {
     const path = String(url);
     if (path.endsWith("/moderations")) return Response.json({ id: "modr-fixture", model: "omni-moderation-latest", results: [{ flagged: false }] });
     if (path.endsWith("/responses/input_tokens")) return Response.json({ object: "response.input_tokens", input_tokens: await onCount() });
     assert.ok(path.endsWith("/responses"), "Unexpected endpoint; fixture never permits real network access");
     inferences += 1;
-    onInference?.();
-    const output = { outcome: "demonstrated", summary: "The distinction is supported.", criteria: [{ criterionIndex: 0, met: true, feedback: "Separates observation and explanation." }] };
+    const output = onInference?.(JSON.parse(String(options?.body)).input) ?? {
+      outcome: "demonstrated", summary: "The distinction is supported.",
+      criteria: [{ criterionIndex: 0, met: true, feedback: "Separates observation and explanation." }],
+    };
     return Response.json({ id: "resp-fixture", object: "response", status: "completed", model: "gpt-4.1-mini-2025-04-14", output: [{ id: "msg-fixture", type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: JSON.stringify(output), annotations: [] }] }], usage: { input_tokens: 100, output_tokens: 20, input_tokens_details: { cached_tokens: 0 } } });
   });
   return { count: () => inferences, restore: () => transport.mock.restore() };
@@ -148,6 +151,71 @@ test("a saved turn replays only for the same learner payload", async () => {
     await assert.rejects(f.runTurn("A different question using the same request identity."), { code: "IDEMPOTENCY_CONFLICT" });
     assert.equal(f.database.prepare("SELECT COUNT(*) AS count FROM spark_usage_reservation").get()?.count, 0);
   } finally { f.close(); }
+});
+
+test("canary denies tutoring and assessment before usage admission or any provider traffic", async () => {
+  const f = await fixture();
+  const previousList = process.env.SPARK_CANARY_ACCOUNT_UIDS;
+  const transport = mock.method(globalThis, "fetch", () => { throw new Error("Cannot call the provider"); });
+  process.env.SPARK_ACCESS_MODE = "canary";
+  try {
+    for (const list of ["", `${f.uid},`, `${f.uid},*`, "another-account"]) {
+      process.env.SPARK_CANARY_ACCOUNT_UIDS = list;
+      await assert.rejects(f.runTurn(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+      await assert.rejects(f.run(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+    }
+    process.env.SPARK_CANARY_ACCOUNT_UIDS = f.uid;
+    delete process.env.SPARK_ACCESS_MODE;
+    await assert.rejects(f.runTurn(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+    process.env.SPARK_ACCESS_MODE = "invalid";
+    await assert.rejects(f.runTurn(), { code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+    assert.equal(transport.mock.callCount(), 0);
+    assert.equal(f.database.prepare("SELECT COUNT(*) AS count FROM spark_usage_reservation").get()?.count, 0);
+  } finally {
+    process.env.SPARK_ACCESS_MODE = "public";
+    if (previousList === undefined) delete process.env.SPARK_CANARY_ACCOUNT_UIDS;
+    else process.env.SPARK_CANARY_ACCOUNT_UIDS = previousList;
+    transport.mock.restore();
+    f.close();
+  }
+});
+
+test("tutoring cites the unprepared saved lesson and replays without another dispatch", async () => {
+  const f = await fixture();
+  const previousList = process.env.SPARK_CANARY_ACCOUNT_UIDS;
+  process.env.SPARK_ACCESS_MODE = "canary";
+  process.env.SPARK_CANARY_ACCOUNT_UIDS = `other-account, ${f.uid}`;
+  let sourceId: string | undefined;
+  const p = provider(async () => 100, (input) => {
+    sourceId = input.match(/<course_chunk id="(chunk-[a-f0-9]+)">\nAn observation records what was measured/)?.[1];
+    assert.ok(sourceId);
+    const block = { type: "explanation", title: "Observation", text: "An observation records what was measured.", style: "concise", steps: null, objectiveIds: null, evidenceStatus: "course_supported" };
+    return { stage: "practice", suggestedActions: [], blocks: [
+      { ...block, id: "valid-source", sourceRefs: [sourceId] },
+      { ...block, id: "invalid-source", sourceRefs: ["invented-source"] },
+    ] };
+  });
+  try {
+    assert.equal((await listAllStoredDocuments("sparkChunks", 20)).length, 0);
+    const first = await f.runTurn();
+    assert.equal(first.response.blocks[0].evidenceStatus, "course_supported");
+    assert.deepEqual(first.response.blocks[0].sourceRefs, [sourceId]);
+    assert.equal(first.response.blocks[1].evidenceStatus, "ai_general_knowledge");
+    assert.deepEqual(first.response.blocks[1].sourceRefs, []);
+    assert.deepEqual((await f.owned(() => readSparkTurnByRequest(f.uid, f.requestId)))?.sourceIds, [sourceId]);
+    const replay = await f.runTurn();
+    assert.equal(replay.replayed, true);
+    assert.equal(JSON.stringify(replay.response), JSON.stringify(first.response));
+    await assert.rejects(f.runTurn("Explain the distinction.", { ...f.context, lessonVersion: "lesson-new" }), { code: "SPARK_STALE_LESSON" });
+    assert.equal(p.count(), 1);
+    assert.equal(f.database.prepare("SELECT COUNT(*) AS count FROM spark_usage_reservation WHERE status = 'committed'").get()?.count, 1);
+  } finally {
+    process.env.SPARK_ACCESS_MODE = "public";
+    if (previousList === undefined) delete process.env.SPARK_CANARY_ACCOUNT_UIDS;
+    else process.env.SPARK_CANARY_ACCOUNT_UIDS = previousList;
+    p.restore();
+    f.close();
+  }
 });
 
 for (const failure of ["count_failure", "ambiguous_inference"] as const) test(`turn ${failure} exposes a new retry identity only after confirmed no dispatch`, async () => {

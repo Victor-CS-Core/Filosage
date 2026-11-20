@@ -2,7 +2,7 @@ import { withAccountRequest, authorizationResponse, requireAcceptedAccount } fro
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { requireSparkLessonAccess, sparkAccessErrorResponse } from "@/lib/spark/access";
-import { sparkFeaturePolicy, sparkRuntimeLimits } from "@/lib/spark/config";
+import { sparkAccountDenial, sparkFeaturePolicy, sparkRuntimeLimits } from "@/lib/spark/config";
 import { sparkTurnRequestSchema } from "@/lib/spark/contracts";
 import { orchestrateSparkTurn, sparkOrchestrationErrorResponse } from "@/lib/spark/orchestration";
 import { requireSparkSession, sparkRepositoryErrorResponse } from "@/lib/spark/repository";
@@ -15,6 +15,8 @@ interface RouteParams {
 async function handlePOST(request: Request, { params }: RouteParams) {
   try {
     const account = await requireAcceptedAccount(request);
+    const denied = sparkAccountDenial(account.uid);
+    if (denied) return denied;
     const policy = sparkFeaturePolicy();
     if (!policy.liveAiEnabled) {
       return Response.json({

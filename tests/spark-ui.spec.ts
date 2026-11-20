@@ -162,6 +162,42 @@ test("Spark denies private course and session reads across two authenticated acc
   expect(deniedSession.status()).toBe(403);
   expect(await deniedSession.json()).toMatchObject({ code: "SPARK_SESSION_FORBIDDEN" });
 });
+
+test("Spark canary denies direct learner API calls even for an authenticated owner outside the cohort", async ({ request, baseURL }, testInfo) => {
+  test.skip(testInfo.project.name !== "spark-1024", "One server-backed identity acceptance run is sufficient.");
+  const storeDirectory = process.env.FILOSAGE_SPARK_TEST_STORE_DIR;
+  expect(storeDirectory).toBeTruthy();
+  await mkdir(resolve(storeDirectory!), { recursive: true });
+  const storePath = resolve(storeDirectory!, "store.json");
+  const stored = JSON.parse(await readFile(storePath, "utf8").catch(() => "{}"));
+  stored["users/local-owner"] = {
+    uid: "local-owner", plan: "pro", accountStatus: "active", subscriptionStatus: "active",
+    acceptedTermsVersion: TERMS_VERSION, acceptedPrivacyVersion: PRIVACY_VERSION,
+  };
+  await writeFile(storePath, JSON.stringify(stored, null, 2));
+  const headers = { Authorization: "Bearer playwright-local-owner", Origin: new URL(baseURL!).origin };
+  for (const path of [
+    "/api/spark/sessions",
+    "/api/spark/sessions/session-canary/turns",
+    "/api/spark/attempts",
+    "/api/spark/attempts/attempt-canary/revisions",
+    "/api/spark/lessons/0-0/prepare",
+  ]) {
+    const denied = await request.post(path, { headers, data: {} });
+    expect(await denied.json(), path).toMatchObject({ code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+    expect(denied.status(), path).toBe(403);
+    expect(denied.headers()["cache-control"], path).toBe("private, no-store");
+  }
+  for (const path of [
+    "/api/spark/sessions/session-canary",
+    "/api/spark/courses/canary-course/state?lessonId=0-0",
+    "/api/spark/courses/canary-course/preparation",
+  ]) {
+    const denied = await request.get(path, { headers });
+    expect(denied.status(), path).toBe(403);
+    expect(await denied.json(), path).toMatchObject({ code: "SPARK_ACCOUNT_NOT_ADMITTED" });
+  }
+});
 const sparkStatePayload = {
   featureEnabled: true,
   availability: "practice_only",

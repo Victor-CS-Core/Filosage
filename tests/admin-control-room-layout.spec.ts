@@ -3,14 +3,17 @@ import { restoreLocalLearner } from "./fixtures/local-learner";
 
 type Theme = "light" | "dark";
 
-async function openResearchTab(page: Page, theme: Theme) {
+async function openSafetyTab(page: Page, theme: Theme) {
   await page.addInitScript((selectedTheme) => {
     localStorage.setItem("filosage-theme", selectedTheme);
   }, theme);
   await restoreLocalLearner(page);
   await page.goto("/admin");
-  await page.getByRole("button", { name: "Research" }).click();
-  await expect(page.getByRole("heading", { name: "Outcome validation" })).toBeVisible();
+  const navigation = page.getByRole("navigation", { name: "Control room sections" });
+  await expect(navigation.getByRole("button", { name: "Research", exact: true })).toHaveCount(0);
+  await expect(navigation.getByRole("button", { name: "Launch readiness", exact: true })).toHaveCount(0);
+  await navigation.getByRole("button", { name: "Safety", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Learner report queue", exact: true })).toBeVisible();
 }
 
 async function expectNoVerticalOverlap(first: Locator, second: Locator) {
@@ -26,43 +29,31 @@ async function expectNoVerticalOverlap(first: Locator, second: Locator) {
 }
 
 for (const theme of ["light", "dark"] as const) {
-  test(`Research cards remain in document flow while scrolling in ${theme} mode`, async ({ page }) => {
+  test(`Safety keeps learner reports and audit controls accessible in ${theme} mode`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 820 });
-    await openResearchTab(page, theme);
+    await openSafetyTab(page, theme);
 
-    const phaseOne = page.locator("section.admin-research-summary").filter({
-      has: page.getByRole("heading", { name: "Outcome validation" }),
+    const reports = page.locator("section.admin-content-reports");
+    const blockedRequests = page.locator("section.admin-panel").filter({
+      has: page.getByRole("heading", { name: "Blocked requests", exact: true }),
     });
-    const phaseTwo = page.locator("section.admin-research-summary").filter({
-      has: page.getByRole("heading", { name: "Retention validation" }),
-    });
-    const protocol = page.locator("section.admin-research-protocol");
-    const phaseFour = page.locator("section.admin-research-summary").filter({
-      has: page.getByRole("heading", { name: "Controlled launch and referral growth" }),
-    });
+    const auditLog = page.locator("section.admin-audit-log");
 
-    await expect(page.locator(".admin-research-summary")).toHaveCount(3);
-    await expect(page.locator(".admin-research-summary").first()).toHaveCSS("position", "static");
-    await protocol.evaluate((element) => element.scrollIntoView({ block: "start" }));
-
-    await expectNoVerticalOverlap(phaseOne, protocol);
-    await expectNoVerticalOverlap(phaseTwo, phaseFour);
-
-    await page.setViewportSize({ width: 1024, height: 820 });
-    await protocol.evaluate((element) => element.scrollIntoView({ block: "start" }));
-    const responsiveColumns = await page.locator(".admin-research-layout").evaluate(
-      (element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/),
-    );
-    expect(responsiveColumns).toHaveLength(1);
-    await expectNoVerticalOverlap(phaseOne, phaseTwo);
-    await expectNoVerticalOverlap(phaseTwo, protocol);
-    await expectNoVerticalOverlap(protocol, phaseFour);
+    for (const width of [1440, 1024]) {
+      await page.setViewportSize({ width, height: 820 });
+      await reports.evaluate((element) => element.scrollIntoView({ block: "start" }));
+      await expect(reports).toBeVisible();
+      await expect(blockedRequests).toBeVisible();
+      await expect(auditLog).toBeVisible();
+      await expectNoVerticalOverlap(reports, blockedRequests);
+      await expectNoVerticalOverlap(reports, auditLog);
+    }
   });
 }
 
 test("keeps admin navigation contained with 44px phone touch targets", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await openResearchTab(page, "light");
+  await openSafetyTab(page, "light");
 
   const tabHeights = await page.getByRole("navigation", { name: "Control room sections" }).getByRole("button").evaluateAll(
     (buttons) => buttons.map((button) => button.getBoundingClientRect().height),

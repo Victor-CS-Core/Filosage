@@ -30,6 +30,12 @@ Pinned defaults are 4,000 input tokens, 900 output tokens, four globally dispatc
 
 The safe staging order is server Spark, public UI, deterministic preparation, then live AI for a small cohort. Verify saved-only and practice-only behavior before each later step. Never enable live AI merely because the UI flag is on.
 
+For a private production canary, use `SPARK_ACCESS_MODE=canary` and set `SPARK_CANARY_ACCOUNT_UIDS` as a server-only binding containing up to 10 comma-separated canonical account IDs for disposable test accounts. Do not commit the list or use emails, wildcards, or an owner override. Missing or invalid mode or a missing, invalid, or empty canary list denies admission while Spark is enabled. `SPARK_ACCESS_MODE=public` is reserved for a separately approved public rollout; it is not a canary fallback.
+
+Keep `NEXT_PUBLIC_SPARK_ENABLED`, `SPARK_SEMANTIC_RETRIEVAL_ENABLED`, and billing off. With `SPARK_ENABLED=true` but live and preparation off, prove excluded accounts receive `403 SPARK_ACCOUNT_NOT_ADMITTED` on direct session, turn, attempt, and preparation requests before opening the monthly ledger. Verify allowed accounts still need ordinary access and entitlement. For the paid window, retain the account restriction and cap both runtime and ledger concurrency at one. After the canary, close the ledger, restore all five Spark flags to false, and remove the canary binding. Keep saved work and any unresolved reservations intact.
+
+Tutoring ranks excerpts directly from the authorized saved lesson version; a missing chunk index must not remove lesson context. Session creation still requires a prepared manifest. For hosted grounding acceptance, prepare a synthetic lesson through the supported endpoint, then ask about a detail that is only in that lesson. Verify a `course_supported` response with a valid excerpt reference and that the same reference is saved and replayed without a new provider charge. The local service regression, not this hosted procedure, verifies grounding without stored chunks. Reopen the lesson after a version change; an old session must refuse even a request carrying the new lesson version. Also verify the published downgrade and deletion controls with disposable accounts before learner rollout.
+
 ## Budget operation
 
 The Command Center Spark panel reads the current UTC month and is the supported owner control. Every change requires a reason and writes a pseudonymous audit record. Category caps must fit inside the AI cap, and no cap can be lowered below committed, reserved, plus unknown exposure.
