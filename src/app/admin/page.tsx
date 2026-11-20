@@ -18,7 +18,6 @@ import {
   Globe2,
   HardDrive,
   LoaderCircle,
-  LockKeyhole,
   KeyRound,
   RefreshCw,
   RotateCcw,
@@ -32,12 +31,12 @@ import {
 import UserAvatar from "@/components/UserAvatar";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
-import type { AdminOverview, AdminUserSummary, OperationalReadinessState } from "@/lib/admin-types";
+import type { AdminOverview, AdminUserSummary } from "@/lib/admin-types";
 import { matchesSearchQuery } from "@/lib/search";
 import SparkOperationsPanel from "./command-center/SparkOperationsPanel";
 import { AuthenticationInventorySummary } from "./AuthenticationInventorySummary";
 
-type AdminTab = "overview" | "costs" | "research" | "launch" | "users" | "ai" | "safety";
+type AdminTab = "overview" | "costs" | "users" | "ai" | "safety";
 
 const featureLabels = {
   course_outline: "Course outline",
@@ -74,42 +73,6 @@ function shortDate(value?: string, includeTime = false) {
   return new Intl.DateTimeFormat("en", includeTime
     ? { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
     : { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
-}
-
-const readinessStateLabels: Record<OperationalReadinessState, string> = {
-  missing: "Missing",
-  unverified: "Verify",
-  running: "Running",
-  healthy: "Ready",
-  stale: "Stale",
-  failed: "Failed",
-};
-
-const billingRolloutLabels = {
-  closed: "Subscriptions are closed",
-  configured: "Stripe is configured; checkout is locked",
-  canary: "Subscriptions are open to the canary",
-  open: "Subscriptions are open",
-} as const;
-
-function ReadinessItem({
-  ready,
-  label,
-  detail,
-  state,
-}: {
-  ready: boolean;
-  label: string;
-  detail: string;
-  state?: OperationalReadinessState;
-}) {
-  return (
-    <article className={ready ? "is-ready" : "needs-work"}>
-      {ready ? <CheckCircle2 size={18} /> : <TriangleAlert size={18} />}
-      <span><strong>{label}</strong><small>{detail}</small></span>
-      <em>{state ? readinessStateLabels[state] : ready ? "Ready" : "Action needed"}</em>
-    </article>
-  );
 }
 
 function SeriesBars({
@@ -267,7 +230,7 @@ export default function AdminPage() {
           <div>
             <span className="admin-eyebrow"><ShieldCheck size={15} /> Owner workspace</span>
             <h1>Control room</h1>
-            <p>Traffic, learning operations, commercial readiness, AI capacity, and account safety in one private view.</p>
+            <p>Traffic, learning operations, AI capacity, and account safety in one private view.</p>
           </div>
           <div className="admin-header-actions">
             <Link className="button button-secondary" href="/admin/command-center">
@@ -291,8 +254,6 @@ export default function AdminPage() {
           {([
             ["overview", Activity, "Overview"],
             ["costs", Coins, "Costs"],
-            ["research", Target, "Research"],
-            ["launch", LockKeyhole, "Launch readiness"],
             ["users", Users, "Users"],
             ["ai", Bot, "AI operations"],
             ["safety", ShieldCheck, "Safety"],
@@ -513,158 +474,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {data && tab === "research" && (
-          <div className="admin-research-layout">
-            <section className="admin-panel admin-research-summary">
-              <header><div><p className="overline">Phase 1</p><h2>Outcome validation</h2></div><span>{data.growth.events} outcome events</span></header>
-              <div className="admin-research-metrics">
-                <div><span>Diagnostic to practice</span><strong>{data.outcomeValidation.diagnosticToPracticePercent}%</strong><small>{data.outcomeValidation.firstPracticeCompleters} of {data.outcomeValidation.diagnosticCompleters} diagnostic completers</small></div>
-                <div><span>Median time to practice</span><strong>{data.outcomeValidation.medianMinutesToFirstPractice === null ? "Pending" : `${data.outcomeValidation.medianMinutesToFirstPractice}m`}</strong><small>Target: under ten minutes</small></div>
-                <div><span>Improved at capstone</span><strong>{data.outcomeValidation.improvementRatePercent}%</strong><small>{data.outcomeValidation.improvedCapstones} of {data.outcomeValidation.comparableCapstones} comparable attempts</small></div>
-              </div>
-              <div className="admin-acquisition-list">
-                <h3>Evidence operations</h3>
-                <div><span>Evidence reports viewed</span><strong>{data.outcomeValidation.evidenceReportViews}</strong><small>Learning record usage</small></div>
-                <div><span>Open content reports</span><strong>{data.outcomeValidation.openContentReports}</strong><small>Owner review queue</small></div>
-                <div><span>Pathway usefulness</span><strong>{data.outcomeValidation.usefulnessPercent}%</strong><small>{data.outcomeValidation.usefulnessResponses} responses · target 70%</small></div>
-              </div>
-              <div className="admin-acquisition-list">
-                <h3>Acquisition evidence</h3>
-                {data.growth.acquisition.length ? data.growth.acquisition.map((channel) => (
-                  <div key={channel.channel}><span>{channel.channel}</span><strong>{channel.measuredSessions} sessions</strong><small>{channel.courseStarts} course starts</small></div>
-                )) : <p>No acquisition evidence has been recorded yet.</p>}
-              </div>
-            </section>
-
-            <section className="admin-panel admin-research-summary">
-              <header><div><p className="overline">Phase 2</p><h2>Retention validation</h2></div><span>{data.retentionValidation.delayedCheckCompleters} delayed-check completers</span></header>
-              <div className="admin-research-metrics">
-                <div><span>Day 7 retention</span><strong>{data.retentionValidation.day7RetentionPercent}%</strong><small>{data.retentionValidation.day7Returned} of {data.retentionValidation.day7Eligible} eligible · target 35%</small></div>
-                <div><span>Day 28 retention</span><strong>{data.retentionValidation.day28RetentionPercent}%</strong><small>{data.retentionValidation.day28Returned} of {data.retentionValidation.day28Eligible} eligible · target 20%</small></div>
-                <div><span>Due-review completion</span><strong>{data.retentionValidation.reviewCompletionPercent}%</strong><small>{data.retentionValidation.reviewCompleters} of {data.retentionValidation.reviewDueActors} due-review learners · target 35%</small></div>
-              </div>
-              <div className="admin-acquisition-list">
-                <h3>Behavior quality</h3>
-                 <div><span>Return anchor</span><strong>First practice</strong><small>Only meaningful learning activity counts as a return</small></div>
-                <div><span>Applied criterion</span><strong>{data.retentionValidation.appliedCriterionPercent}%</strong><small>Target: at least 25% of first-practice learners</small></div>
-                <div><span>Delayed checks completed</span><strong>{data.retentionValidation.delayedCheckCompleters}</strong><small>7-day and 28-day evidence checks</small></div>
-              </div>
-            </section>
-
-            <section className="admin-panel admin-research-protocol">
-              <header><div><p className="overline">Evidence gate</p><h2>What must be true before scaling Phase 2</h2></div><span>Engineering is active; market proof is pending</span></header>
-              <ol>
-                <li><span>01</span><div><strong>Activation</strong><p>At least 50% of qualified diagnostic completers reach first practice, with a median under ten minutes.</p></div></li>
-                <li><span>02</span><div><strong>Learning improvement</strong><p>At least 60% of learners with comparable baseline and final capstones improve.</p></div></li>
-                <li><span>03</span><div><strong>Usefulness and trust</strong><p>At least 70% find the pathway useful for their stated outcome, while critical factual errors stay below the launch threshold.</p></div></li>
-                <li><span>04</span><div><strong>Decision</strong><p>Continue, narrow, or correct the course based on recorded evidence before adding retention complexity.</p></div></li>
-              </ol>
-            </section>
-
-            <section className="admin-panel admin-research-summary">
-              <header><div><p className="overline">Phase 4</p><h2>Controlled launch and referral growth</h2></div><span>Billing activation remains separately locked</span></header>
-              <div className="admin-research-metrics">
-                <div><span>Referred visitors</span><strong>{data.paidLaunch.referredVisitors}</strong><small>{data.paidLaunch.referralLinksCopied} evidence links copied</small></div>
-                <div><span>Referral course starts</span><strong>{data.paidLaunch.referralToCoursePercent}%</strong><small>{data.paidLaunch.referredCourseStarts} starts from referred visitors</small></div>
-                <div><span>Active subscribers</span><strong>{data.paidLaunch.activeSubscribers}</strong><small>{data.membership.trialingSubscribers} trialing · {data.paidLaunch.pastDueSubscribers} past due · {data.paidLaunch.canceledSubscribers} canceled</small></div>
-              </div>
-              <div className="admin-acquisition-list">
-                <h3>Launch health</h3>
-                <div><span>Payment processing failures</span><strong>{data.paidLaunch.failedWebhookEvents}</strong><small>Failed Stripe webhook events in this reporting window</small></div>
-                <div><span>Organic growth target</span><strong>30%</strong><small>Activated acquisition from search, referral, or partners</small></div>
-                <div><span>Paid-launch gate</span><strong>{data.paidLaunch.activeSubscribers >= 50 ? "Measure churn" : "Build cohort"}</strong><small>Churn becomes decision-grade after the first 50 paid subscribers</small></div>
-              </div>
-            </section>
-
-            <section className="admin-panel admin-content-reports">
-              <header><div><p className="overline">Content integrity</p><h2>Learner report queue</h2></div><span>{data.contentReports.filter((report) => report.status === "open").length} open</span></header>
-              <div>
-                {data.contentReports.length ? data.contentReports.map((report) => (
-                  <article key={report.id}>
-                    <span className="admin-list-icon"><Flag size={15} /></span>
-                    <div>
-                      <strong>{report.topic} · {report.sourceLabel ? `Source: ${report.sourceLabel}` : report.lessonTitle ?? report.lessonId ?? "Course content"}</strong>
-                      <small>{report.category.replaceAll("_", " ")} · {report.contentVersion ?? "unknown version"} · {shortDate(report.createdAt, true)}</small>
-                      {report.note && <p>{report.note}</p>}
-                    </div>
-                    {report.status === "open" ? (
-                      <span>
-                        <Link className="button button-quiet button-small" href={`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`} aria-disabled={actionBusy} tabIndex={actionBusy ? -1 : undefined} onClick={(event) => { if (actionBusy) event.preventDefault(); }}>Open course</Link>
-                        <button className="button button-secondary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "dismissed")}>Dismiss</button>
-                        <button className="button button-primary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "resolved")}>Resolve</button>
-                      </span>
-                    ) : <span><Link className="button button-quiet button-small" href={`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`}>Open course</Link><em className={`admin-status status-${report.status}`}>{report.status}</em></span>}
-                  </article>
-                )) : <p>No learner content reports have been submitted.</p>}
-              </div>
-              {actionMessage && <p className="admin-action-message" role="status">{actionMessage}</p>}
-            </section>
-          </div>
-        )}
-
-        {data && tab === "launch" && (
-          <div className="admin-workspace admin-launch-layout">
-            <section className={`admin-launch-lock ${data.launchReadiness.billingLockActive ? "is-locked" : "is-open"}`}>
-              <span><LockKeyhole size={22} /></span>
-              <div>
-                <p className="overline">Commercial master lock</p>
-                <h2>{billingRolloutLabels[data.launchReadiness.mode]}</h2>
-                <p>{data.launchReadiness.mode === "closed"
-                  ? "Billing remains fail-closed while provider, tax, operations, and customer-support evidence is completed."
-                  : data.launchReadiness.mode === "configured"
-                    ? "Stripe management can support existing customers, but new Checkout Sessions remain disabled."
-                    : data.launchReadiness.mode === "canary"
-                      ? "Only the reviewed server-side account allowlist can start Stripe Checkout."
-                      : "Checkout is available to eligible accounts. Confirm every launch gate remains healthy."}</p>
-              </div>
-              <em>{data.launchReadiness.mode === "canary" ? "Canary" : data.launchReadiness.billingLockActive ? "Protected" : "Live commerce"}</em>
-            </section>
-
-            <div className="admin-launch-grid">
-              <section className="admin-panel admin-launch-panel">
-                <header><div><p className="overline">Demand evidence</p><h2>Account-bound pricing intent</h2></div><span>Deduplicated by verified account</span></header>
-                <div className="admin-launch-metrics">
-                  <div><span>Total responses</span><strong>{data.launchReadiness.pricingIntent.total}</strong><small>Free accounts with a saved preference</small></div>
-                  <div><span>Ready at launch</span><strong>{data.launchReadiness.pricingIntent.readyNow}</strong><small>Strongest stated purchase intent</small></div>
-                  <div><span>Within 30 days</span><strong>{data.launchReadiness.pricingIntent.within30Days}</strong><small>Interested but not immediate</small></div>
-                  <div><span>Plan preference</span><strong>{data.launchReadiness.pricingIntent.plusPreferred} Plus</strong><small>{data.launchReadiness.pricingIntent.proPreferred} prefer Pro</small></div>
-                  <div><span>Annual preference</span><strong>{data.launchReadiness.pricingIntent.annualPreferred}</strong><small>{data.launchReadiness.pricingIntent.monthlyPreferred} prefer monthly</small></div>
-                </div>
-                <p className="admin-launch-note">These are stated preferences, not revenue. Treat them as directional until real checkout conversion, refunds, and churn can be measured.</p>
-              </section>
-
-              <section className="admin-panel admin-launch-panel">
-                <header><div><p className="overline">Infrastructure</p><h2>Production operations</h2></div><span>Secret values are never shown</span></header>
-                <div className="admin-readiness-list">
-                  <ReadinessItem ready={data.launchReadiness.activityReceiptsConfigured} label="Signed activity receipts" detail="Creator progression is bound to verified lesson activity." />
-                  <ReadinessItem ready={data.launchReadiness.productionHealthMonitorConfigured} label="Production health target" detail="A deployment health URL is configured for release checks." />
-                  <ReadinessItem ready={data.launchReadiness.operationsAlerts.ready} state={data.launchReadiness.operationsAlerts.state} label="Operational alerts" detail={data.launchReadiness.operationsAlerts.detail} />
-                </div>
-              </section>
-
-              <section className="admin-panel admin-launch-panel">
-                <header><div><p className="overline">Commerce lifecycle</p><h2>Payments and recovery</h2></div><span>{data.launchReadiness.billingLockActive ? "Checkout disabled" : "Checkout enabled"}</span></header>
-                <div className="admin-readiness-list">
-                  <ReadinessItem ready={data.launchReadiness.billingLockActive} label="Closed-launch billing lock" detail="Payment routes remain unavailable during preparation." />
-                  <ReadinessItem ready={data.launchReadiness.paymentProviderConfigured} label="Stripe production objects" detail="Keys, webhook secret, and all four Plus/Pro price IDs must be present." />
-                  <ReadinessItem ready={data.paidLaunch.failedWebhookEvents === 0} label="Webhook processing" detail={`${data.paidLaunch.failedWebhookEvents} failed event${data.paidLaunch.failedWebhookEvents === 1 ? "" : "s"} in this reporting window.`} />
-                  <ReadinessItem ready={data.launchReadiness.lifecycleMessagingConfigured} label="Lifecycle messaging" detail="Receipts, renewal notices, payment recovery, and suppression handling still need a delivery provider." />
-                </div>
-              </section>
-
-              <section className="admin-panel admin-launch-panel">
-                <header><div><p className="overline">Customer protection</p><h2>Support and content response</h2></div><span>Human review remains required</span></header>
-                <div className="admin-readiness-list">
-                  <ReadinessItem ready={data.launchReadiness.supportChannelConfigured} label="Support channel" detail="Account, billing, privacy, and course issues have a published contact path." />
-                  <ReadinessItem ready={data.launchReadiness.openContentReports === 0} label="Content report queue" detail={`${data.launchReadiness.openContentReports} open report${data.launchReadiness.openContentReports === 1 ? "" : "s"} require owner review.`} />
-                  <ReadinessItem ready={data.paidLaunch.pastDueSubscribers === 0} label="Past-due accounts" detail={`${data.paidLaunch.pastDueSubscribers} account${data.paidLaunch.pastDueSubscribers === 1 ? "" : "s"} currently require recovery handling.`} />
-                </div>
-                <div className="admin-launch-actions"><Link className="button button-secondary" href="/support">Open support center</Link><button className="button button-quiet" onClick={() => setTab("safety")}>Review safety activity</button></div>
-              </section>
-            </div>
-          </div>
-        )}
-
         {data && tab === "users" && (
           <div className="admin-users-layout">
             <section className="admin-panel admin-user-directory">
@@ -796,6 +605,29 @@ export default function AdminPage() {
               <article><CheckCircle2 size={18} /><span><strong>Output screening</strong><small>Courses and generated lessons are checked before saving</small></span></article>
               <article><CheckCircle2 size={18} /><span><strong>Repeated abuse control</strong><small>Three blocked requests in 24 hours trigger a cooldown</small></span></article>
               <article><CheckCircle2 size={18} /><span><strong>Data minimization</strong><small>Blocked text is replaced with category labels and a one-way fingerprint</small></span></article>
+            </section>
+            <section className="admin-panel admin-content-reports">
+              <header><div><p className="overline">Content integrity</p><h2>Learner report queue</h2></div><span>{data.contentReports.filter((report) => report.status === "open").length} open</span></header>
+              <div>
+                {data.contentReports.length ? data.contentReports.map((report) => (
+                  <article key={report.id}>
+                    <span className="admin-list-icon"><Flag size={15} /></span>
+                    <div>
+                      <strong>{report.topic} · {report.sourceLabel ? `Source: ${report.sourceLabel}` : report.lessonTitle ?? report.lessonId ?? "Course content"}</strong>
+                      <small>{report.category.replaceAll("_", " ")} · {report.contentVersion ?? "unknown version"} · {shortDate(report.createdAt, true)}</small>
+                      {report.note && <p>{report.note}</p>}
+                    </div>
+                    {report.status === "open" ? (
+                      <span>
+                        <Link className="button button-quiet button-small" href={`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`} aria-disabled={actionBusy} tabIndex={actionBusy ? -1 : undefined} onClick={(event) => { if (actionBusy) event.preventDefault(); }}>Open course</Link>
+                        <button className="button button-secondary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "dismissed")}>Dismiss</button>
+                        <button className="button button-primary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "resolved")}>Resolve</button>
+                      </span>
+                    ) : <span><Link className="button button-quiet button-small" href={`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`}>Open course</Link><em className={`admin-status status-${report.status}`}>{report.status}</em></span>}
+                  </article>
+                )) : <p>No learner content reports have been submitted.</p>}
+              </div>
+              {actionMessage && <p className="admin-action-message" role="status">{actionMessage}</p>}
             </section>
             <div className="admin-safety-grid">
               <section className="admin-panel admin-log-panel">

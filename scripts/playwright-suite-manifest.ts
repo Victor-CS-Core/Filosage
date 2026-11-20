@@ -44,7 +44,7 @@ export const apiSuites = [
 export const singleEngineSuites = [
   "tests/account-storage-isolation.spec.ts",
   "tests/account-onboarding.spec.ts",
-  "tests/admin-research-layout.spec.ts",
+  "tests/admin-control-room-layout.spec.ts",
   "tests/billing-lifecycle.spec.ts",
   "tests/command-center.spec.ts",
   "tests/flashcard-system.spec.ts",
@@ -113,7 +113,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/visitor-release.spec.ts": 8,
     "tests/account-storage-isolation.spec.ts": 5,
     "tests/account-onboarding.spec.ts": 6,
-    "tests/admin-research-layout.spec.ts": 2,
+    "tests/admin-control-room-layout.spec.ts": 2,
     "tests/analytics-consent.spec.ts": 3,
     "tests/app-shell.spec.ts": 36,
     "tests/auth-accessibility.spec.ts": 7,
